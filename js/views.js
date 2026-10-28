@@ -143,12 +143,13 @@
     ]));
 
     var input = h('input', { type: 'text', id: 'taskInput', maxlength: '200', placeholder: 'Новая задача…', 'aria-label': 'Текст новой задачи', autocomplete: 'off' });
+    var dueInput = h('input', { type: 'date', id: 'taskDueInput', class: 'task-due-input', 'aria-label': 'Срок закрытия новой задачи (необязательно)', title: 'Срок закрытия (необязательно)' });
     var form = h('form', { class: 'task-add', onsubmit: function (e) {
       e.preventDefault();
       var v = input.value.trim();
       if (!v) { input.focus(); return; }
-      handlers.addTask(p.id, v);
-    } }, [input, h('button', { type: 'submit', class: 'btn btn-primary sm' }, 'Добавить')]);
+      handlers.addTask(p.id, v, dueInput.value);
+    } }, [input, dueInput, h('button', { type: 'submit', class: 'btn btn-primary sm' }, 'Добавить')]);
 
     root.appendChild(h('section', { class: 'tasks', 'aria-labelledby': 'tasksTitle' }, [
       h('div', { class: 'row-between' }, [
@@ -160,15 +161,29 @@
       ]),
       p.tasks.length ? h('ul', { class: 'task-list' }, p.tasks.map(function (t) {
         var cbId = 'task-' + t.id;
-        return h('li', { class: 'task' + (t.done ? ' is-done' : ''), dataset: { taskId: t.id } }, [
+        return h('li', { class: 'task' + (t.done ? ' is-done' : '') + (S.isTaskOverdue(t) ? ' is-overdue' : ''), dataset: { taskId: t.id } }, [
           h('input', { type: 'checkbox', id: cbId, checked: t.done, dataset: { focusKey: 'task-' + t.id }, onchange: function (e) { handlers.toggleTask(p.id, t.id, e.target.checked); } }),
           h('label', { for: cbId }, t.text),
+          taskDueBadge(t),
+          h('input', { type: 'date', class: 'task-due-input', value: t.due || '', 'aria-label': 'Срок закрытия задачи «' + t.text + '»', title: 'Срок закрытия', dataset: { focusKey: 'due-' + t.id },
+            onchange: function (e) { handlers.setTaskDue(p.id, t.id, e.target.value); } }),
           h('button', { type: 'button', class: 'icon-btn sm danger', 'aria-label': 'Удалить задачу «' + t.text + '»', onclick: function () { handlers.removeTask(p.id, t.id); } }, '✕')
         ]);
       })) : h('p', { class: 'muted' }, 'Задач пока нет.'),
+      p.tasks.some(function (t) { return t.due; }) ? h('p', { class: 'hint' }, ['Задачи со сроком видны в ', h('a', { href: 'calendar.html#view=month&date=' + encodeURIComponent(U.toISODate(U.today())) }, 'календаре'), '.']) : null,
       form
     ]));
   }
 
-  PD.views = { renderTable: renderTable, renderKanban: renderKanban, renderDetails: renderDetails };
+  /** Бейдж срока задачи: дата + «просрочена»/«сегодня»/«завтра». */
+  function taskDueBadge(t) {
+    if (!t.due) return null;
+    var d = U.daysUntil(t.due);
+    var overdue = S.isTaskOverdue(t);
+    var cls = t.done ? 'badge-muted' : overdue ? 'badge-danger' : d === 0 ? 'badge-warn' : 'badge-muted';
+    var note = t.done ? '' : overdue ? ' · просрочена' : d === 0 ? ' · сегодня' : d === 1 ? ' · завтра' : '';
+    return h('span', { class: 'badge task-due ' + cls, title: 'Срок закрытия' }, 'до ' + U.formatDate(t.due) + note);
+  }
+
+  PD.views = { taskDueBadge: taskDueBadge,  renderTable: renderTable, renderKanban: renderKanban, renderDetails: renderDetails };
 })(window);

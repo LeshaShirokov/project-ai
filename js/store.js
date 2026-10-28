@@ -39,7 +39,16 @@
     if (!t || typeof t !== 'object') return null;
     var text = str(t.text, 200);
     if (!text) return null;
-    return { id: str(t.id, 60) || U.uid('t'), text: text, done: !!t.done };
+    // due — необязательный срок закрытия (YYYY-MM-DD); старые задачи без срока остаются как есть
+    var due = typeof t.due === 'string' && U.isValidDate(t.due.trim()) ? t.due.trim() : '';
+    return { id: str(t.id, 60) || U.uid('t'), text: text, done: !!t.done, due: due };
+  }
+
+  /** Открытая задача со сроком в прошлом. */
+  function isTaskOverdue(t) {
+    if (!t || t.done || !t.due) return false;
+    var d = U.daysUntil(t.due);
+    return d !== null && d < 0;
   }
 
   function taskProgress(tasks) {
@@ -114,26 +123,27 @@
   /* ---------- Демо-данные ---------- */
   function demoProjects() {
     var D = U.addDays;
-    function tasks(list) { return list.map(function (t) { return { id: U.uid('t'), text: t[0], done: !!t[1] }; }); }
+    // [текст, выполнена, срок — смещение в днях от сегодня (необязательно)]
+    function tasks(list) { return list.map(function (t) { return { id: U.uid('t'), text: t[0], done: !!t[1], due: typeof t[2] === 'number' ? D(t[2]) : '' }; }); }
     var raw = [
       { name: 'CRM для отдела продаж', client: 'ООО «ТехноСервис»', description: 'Внутренняя CRM: воронка сделок, интеграция с телефонией и 1С.', status: 'active', priority: 'high', stack: 'TypeScript, React, Node.js, PostgreSQL', team: 'Анна Петрова, Игорь Смирнов, Олег Ким', start: D(-90), deadline: D(21), budget: 2400000, spent: 1650000, progress: 62, repo: 'https://github.com/example/crm-sales', tags: 'b2b, внутренний',
-        tasks: tasks([['Модуль сделок', 1], ['Интеграция с телефонией', 1], ['Отчёты для руководителя', 0], ['Синхронизация с 1С', 0]]), autoProgress: false },
+        tasks: tasks([['Модуль сделок', 1, -35], ['Интеграция с телефонией', 1, -6], ['Отчёты для руководителя', 0, 2], ['Синхронизация с 1С', 0, 12], ['Нагрузочное тестирование', 0, 18]]), autoProgress: false },
       { name: 'Мобильное приложение доставки', client: 'FoodExpress', description: 'iOS/Android приложение для курьеров и клиентов с трекингом заказа.', status: 'active', priority: 'critical', stack: 'Kotlin, Swift, Go, Redis', team: 'Мария Иванова, Дмитрий Орлов', start: D(-60), deadline: D(-4), budget: 3800000, spent: 3950000, progress: 81, repo: 'https://github.com/example/delivery-app', tags: 'mobile, b2c',
-        tasks: tasks([['Экран заказа', 1], ['Трекинг курьера', 1], ['Оплата картой', 1], ['Push-уведомления', 0]]), autoProgress: false },
+        tasks: tasks([['Экран заказа', 1, -30], ['Трекинг курьера', 1, -14], ['Оплата картой', 1, -7], ['Push-уведомления', 0, -2], ['Публикация в сторах', 0, 0]]), autoProgress: false },
       { name: 'Миграция в Kubernetes', client: 'Внутренний ИТ', description: 'Перенос монолита и 12 сервисов в managed Kubernetes, настройка CI/CD.', status: 'planning', priority: 'medium', stack: 'Kubernetes, Docker, Terraform, Go', team: 'Сергей Волков, Павел Зайцев', start: D(10), deadline: D(120), budget: 1500000, spent: 120000, progress: 10, repo: 'https://gitlab.com/example/infra', tags: 'devops, инфраструктура',
-        tasks: tasks([['Аудит сервисов', 1], ['Terraform-модули', 0], ['Пилотный кластер', 0]]), autoProgress: true },
+        tasks: tasks([['Аудит сервисов', 1, -3], ['Terraform-модули', 0, 25], ['Пилотный кластер', 0, 45]]), autoProgress: true },
       { name: 'Портал самообслуживания клиентов', client: 'Банк «Северный»', description: 'Личный кабинет: заявки, документы, чат с поддержкой.', status: 'done', priority: 'high', stack: 'Java, Spring, React, PostgreSQL', team: 'Елена Соколова, Артём Новиков, Ирина Лебедева', start: D(-240), deadline: D(-30), budget: 5200000, spent: 4870000, progress: 100, repo: 'https://github.com/example/self-service', tags: 'fintech, b2c',
-        tasks: tasks([['Авторизация', 1], ['Документы', 1], ['Чат поддержки', 1]]), autoProgress: true },
+        tasks: tasks([['Авторизация', 1, -120], ['Документы', 1, -70], ['Чат поддержки', 1, -35]]), autoProgress: true },
       { name: 'ML-скоринг лидов', client: 'ООО «ТехноСервис»', description: 'Модель оценки вероятности сделки на основе истории CRM.', status: 'idea', priority: 'low', stack: 'Python, PostgreSQL, Docker', team: 'Наталья Морозова', start: '', deadline: D(180), budget: 900000, spent: 0, progress: 0, repo: '', tags: 'ml, аналитика', tasks: [], autoProgress: false },
       { name: 'Редизайн корпоративного сайта', client: 'Маркетинг', description: 'Новый дизайн, headless CMS, ускорение загрузки и SEO.', status: 'paused', priority: 'low', stack: 'TypeScript, Next.js, Figma', team: 'Ольга Кузнецова, Максим Попов', start: D(-45), deadline: D(30), budget: 700000, spent: 310000, progress: 35, repo: 'https://github.com/example/site', tags: 'маркетинг',
-        tasks: tasks([['Дизайн-макеты', 1], ['Перенос контента', 0], ['SEO-аудит', 0]]), autoProgress: false },
+        tasks: tasks([['Дизайн-макеты', 1, -20], ['Перенос контента', 0, 9], ['SEO-аудит', 0]]), autoProgress: false },
       { name: 'Система мониторинга и алертинга', client: 'Внутренний ИТ', description: 'Prometheus + Grafana, дежурства, SLO для ключевых сервисов.', status: 'active', priority: 'high', stack: 'Go, Prometheus, Grafana, Kubernetes', team: 'Павел Зайцев, Сергей Волков', start: D(-30), deadline: D(6), budget: 850000, spent: 540000, progress: 67, repo: 'https://github.com/example/monitoring', tags: 'devops, sre',
-        tasks: tasks([['Экспортеры метрик', 1], ['Дашборды Grafana', 1], ['Правила алертов', 0]]), autoProgress: true },
+        tasks: tasks([['Экспортеры метрик', 1, -16], ['Дашборды Grafana', 1, -1], ['Правила алертов', 0, 1], ['Регламент дежурств', 0, 5]]), autoProgress: true },
       { name: 'Интеграция с маркетплейсами', client: 'ТД «Горизонт»', description: 'Выгрузка остатков и заказов в Ozon и Wildberries.', status: 'active', priority: 'medium', stack: 'Python, FastAPI, Redis, PostgreSQL', team: 'Артём Новиков, Олег Ким', start: D(-20), deadline: D(-1), budget: 1100000, spent: 820000, progress: 74, repo: 'https://github.com/example/marketplaces', tags: 'e-commerce, интеграции',
-        tasks: tasks([['API Ozon', 1], ['API Wildberries', 1], ['Синхронизация остатков', 0]]), autoProgress: false },
+        tasks: tasks([['API Ozon', 1, -12], ['API Wildberries', 1, -5], ['Синхронизация остатков', 0, -1]]), autoProgress: false },
       { name: 'Чат-бот поддержки', client: 'Банк «Северный»', description: 'Бот для частых вопросов с передачей оператору.', status: 'cancelled', priority: 'medium', stack: 'Python, Docker', team: 'Наталья Морозова', start: D(-150), deadline: D(-60), budget: 600000, spent: 180000, progress: 25, repo: '', tags: 'fintech, ai', tasks: [], autoProgress: false },
       { name: 'Хранилище данных (DWH)', client: 'Финансовый департамент', description: 'ETL из учётных систем, витрины для BI и управленческой отчётности.', status: 'planning', priority: 'critical', stack: 'Python, ClickHouse, Airflow, Docker', team: 'Ирина Лебедева, Дмитрий Орлов', start: D(3), deadline: D(14), budget: 2900000, spent: 250000, progress: 5, repo: 'https://github.com/example/dwh', tags: 'аналитика, bi',
-        tasks: tasks([['Сбор требований', 1], ['Архитектура', 0], ['ETL-процессы', 0], ['Витрины', 0]]), autoProgress: false }
+        tasks: tasks([['Сбор требований', 1, -2], ['Архитектура', 0, 4], ['ETL-процессы', 0, 10], ['Витрины', 0, 14]]), autoProgress: false }
     ];
     return raw.map(normalize);
   }
@@ -224,10 +234,26 @@
     fn(tasks);
     return update(id, { tasks: tasks });
   }
-  function addTask(id, text) {
+  /** Новая задача; due — необязательный срок (YYYY-MM-DD). Возвращает {project, task} или null. */
+  function addTask(id, text, due) {
     text = str(text, 200);
     if (!text) return null;
-    return mutateTasks(id, function (tasks) { tasks.push({ id: U.uid('t'), text: text, done: false }); });
+    var task = { id: U.uid('t'), text: text, done: false, due: U.isValidDate(due) ? due : '' };
+    var p = mutateTasks(id, function (tasks) { tasks.push(task); });
+    return p ? { project: p, task: findTask(p, task.id) } : null;
+  }
+  function findTask(p, taskId) {
+    if (!p) return null;
+    for (var i = 0; i < p.tasks.length; i++) if (p.tasks[i].id === taskId) return p.tasks[i];
+    return null;
+  }
+  function getTask(id, taskId) { return findTask(get(id), taskId); }
+  /** Срок задачи: дата YYYY-MM-DD или '' — убрать срок. */
+  function setTaskDue(id, taskId, due) {
+    due = U.isValidDate(due) ? due : '';
+    return mutateTasks(id, function (tasks) {
+      tasks.forEach(function (t) { if (t.id === taskId) t.due = due; });
+    });
   }
   function toggleTask(id, taskId, done) {
     return mutateTasks(id, function (tasks) {
@@ -291,13 +317,20 @@
 
   /** teamNames(p) — имена участников (контакты + имена без контакта); по умолчанию только p.team. */
   function exportCSV(teamNames) {
-    var header = ['Название', 'Клиент/владелец', 'Описание', 'Статус', 'Приоритет', 'Стек', 'Команда', 'Начало', 'Дедлайн', 'Бюджет', 'Потрачено', 'Прогресс, %', 'Репозиторий', 'Теги', 'Задач всего', 'Задач выполнено'];
+    var header = ['Название', 'Клиент/владелец', 'Описание', 'Статус', 'Приоритет', 'Стек', 'Команда', 'Начало', 'Дедлайн', 'Бюджет', 'Потрачено', 'Прогресс, %', 'Репозиторий', 'Теги', 'Задач всего', 'Задач выполнено', 'Просроченных задач', 'Ближайший срок задачи'];
     var rows = projects.map(function (p) {
       return [p.name, p.client, p.description, statusLabel(p.status), priorityLabel(p.priority), p.stack.join(', '), (teamNames ? teamNames(p) : p.team).join(', '),
         p.start, p.deadline, p.budget, p.spent, p.progress, p.repo, p.tags.join(', '), p.tasks.length,
-        p.tasks.filter(function (t) { return t.done; }).length];
+        p.tasks.filter(function (t) { return t.done; }).length, p.tasks.filter(isTaskOverdue).length, nextTaskDue(p)];
     });
     return '\uFEFF' + U.toCSV([header].concat(rows));
+  }
+
+  /** Самый ранний срок среди открытых задач проекта ('' — нет). */
+  function nextTaskDue(p) {
+    var best = '';
+    p.tasks.forEach(function (t) { if (!t.done && t.due && (!best || t.due < best)) best = t.due; });
+    return best;
   }
 
   /* ---------- Аналитика ---------- */
@@ -328,7 +361,7 @@
     normalize: normalize, validate: validate, taskProgress: taskProgress, demoProjects: demoProjects,
     load: load, reload: reload, save: save, subscribe: subscribe, all: all, get: get,
     create: create, update: update, remove: remove, setStatus: setStatus, mapTeams: mapTeams,
-    addTask: addTask, toggleTask: toggleTask, removeTask: removeTask, setAutoProgress: setAutoProgress,
+    addTask: addTask, toggleTask: toggleTask, setTaskDue: setTaskDue, getTask: getTask, isTaskOverdue: isTaskOverdue, nextTaskDue: nextTaskDue, removeTask: removeTask, setAutoProgress: setAutoProgress,
     loadDemo: loadDemo, clearAll: clearAll, exportJSON: exportJSON, importJSON: importJSON, exportCSV: exportCSV,
     isOverdue: isOverdue, stats: stats,
     storageOk: function () { return storageOk; }

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Календарь: задачи проектов со сроками закрытия и дедлайны проектов.">
+  <meta name="color-scheme" content="light dark">
+  <title>Календарь — ИТ-проекты</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236366f1'/%3E%3Cpath d='M9 22V10h3v12zm5 0V14h3v8zm5 0v-6h3v6z' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script src="js/theme-init.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Перейти к содержимому</a>
+
+  <div class="app" id="app">
+    <aside class="sidebar" id="sidebar" aria-label="Боковая панель">
+      <div class="brand">
+        <span class="brand-logo" aria-hidden="true">
+          <svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="8" fill="currentColor"/><path d="M9 22V10h3v12zm5 0V14h3v8zm5 0v-6h3v6z" fill="#fff"/></svg>
+        </span>
+        <span class="brand-text">
+          <strong>ProjectBoard</strong>
+          <small>учёт ИТ-проектов</small>
+        </span>
+      </div>
+
+      <nav class="nav" aria-label="Разделы">
+        <ul>
+          <li><a href="index.html" class="nav-link"><span class="nav-ico" aria-hidden="true">◔</span>Аналитика</a></li>
+          <li><a href="projects.html" class="nav-link"><span class="nav-ico" aria-hidden="true">☰</span>Проекты</a></li>
+          <li><a href="calendar.html" class="nav-link" aria-current="page"><span class="nav-ico" aria-hidden="true">▦</span>Календарь</a></li>
+          <li><a href="contacts.html" class="nav-link"><span class="nav-ico" aria-hidden="true">☺</span>Контакты</a></li>
+        </ul>
+      </nav>
+
+      <section class="sidebar-section" aria-labelledby="legend-title">
+        <h2 class="sidebar-title" id="legend-title">Обозначения</h2>
+        <ul class="cal-legend">
+          <li><span class="lg lg-task" aria-hidden="true"></span>Задача (цвет — проект)</li>
+          <li><span class="lg lg-overdue" aria-hidden="true"></span>Просроченная задача</li>
+          <li><span class="lg lg-done" aria-hidden="true"></span>Выполненная задача</li>
+          <li><span class="lg lg-deadline" aria-hidden="true">⚑</span>Дедлайн проекта</li>
+          <li><span class="lg lg-start" aria-hidden="true">▶</span>Старт проекта</li>
+        </ul>
+        <p class="hint cal-keys">Клавиатура: стрелки — по дням, PageUp/PageDown — месяц, Home/End — начало/конец недели, Enter — открыть день.</p>
+      </section>
+
+      <p class="sidebar-foot">Данные хранятся локально в браузере (localStorage) и синхронизируются между вкладками.</p>
+    </aside>
+    <div class="sidebar-backdrop" id="sidebarBackdrop" hidden></div>
+
+    <div class="content">
+      <header class="topbar">
+        <button type="button" class="icon-btn menu-btn" id="menuBtn" aria-label="Открыть меню" aria-controls="sidebar" aria-expanded="false">
+          <span aria-hidden="true">☰</span>
+        </button>
+        <div class="topbar-title">
+          <h1>Календарь</h1>
+          <p class="topbar-sub" id="todayLabel"></p>
+        </div>
+        <div class="topbar-actions">
+          <button type="button" class="icon-btn" id="themeBtn" aria-pressed="false" aria-label="Тёмная тема" title="Переключить тему">
+            <span class="theme-ico theme-ico-dark" aria-hidden="true">☾</span>
+            <span class="theme-ico theme-ico-light" aria-hidden="true">☀</span>
+          </button>
+          <button type="button" class="btn btn-primary" data-action="new-task" aria-label="Новая задача со сроком"><span aria-hidden="true">＋</span><span class="btn-label"> Задача</span></button>
+        </div>
+      </header>
+
+      <main id="main" tabindex="-1">
+        <section class="section" aria-labelledby="calTitle">
+          <div class="cal-head">
+            <div class="cal-nav" role="group" aria-label="Навигация по календарю">
+              <button type="button" class="icon-btn" id="calPrev" aria-label="Назад">‹</button>
+              <button type="button" class="btn btn-ghost sm" id="calToday">Сегодня</button>
+              <button type="button" class="icon-btn" id="calNext" aria-label="Вперёд">›</button>
+            </div>
+            <h2 class="section-title cal-title" id="calTitle" aria-live="polite"></h2>
+            <div class="view-toggle" role="group" aria-label="Вид календаря">
+              <button type="button" class="seg-btn" data-cal-view="day" aria-pressed="false">День</button>
+              <button type="button" class="seg-btn" data-cal-view="week" aria-pressed="false">Неделя</button>
+              <button type="button" class="seg-btn" data-cal-view="month" aria-pressed="true">Месяц</button>
+            </div>
+          </div>
+
+          <form class="toolbar" id="calFilters" aria-label="Фильтры календаря">
+            <div class="field">
+              <label for="calProject">Проект</label>
+              <select id="calProject"><option value="">Все проекты</option></select>
+            </div>
+            <div class="field">
+              <label for="calStatus">Задачи</label>
+              <select id="calStatus">
+                <option value="">Все</option>
+                <option value="open">Открытые</option>
+                <option value="done">Выполненные</option>
+              </select>
+            </div>
+            <div class="field field-check">
+              <label class="check"><input type="checkbox" id="calDeadlines" checked><span>Дедлайны и старты проектов</span></label>
+            </div>
+            <button type="button" class="btn btn-ghost" id="calReset">Сбросить</button>
+          </form>
+
+          <p class="hint cal-hint" id="calHint" hidden></p>
+          <p class="cal-summary" id="calSummary" aria-live="polite"></p>
+          <div id="calView" class="cal-view"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Модальное окно: элемент календаря -->
+  <div class="modal" id="itemModal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-dialog modal-small" role="dialog" aria-modal="true" aria-labelledby="itemTitle">
+      <header class="modal-head">
+        <h2 id="itemTitle">Задача</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Закрыть">✕</button>
+      </header>
+      <div class="modal-body" id="itemBody"></div>
+      <footer class="modal-foot">
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-ghost" data-close>Закрыть</button>
+        <a class="btn btn-primary" id="itemProjectLink" href="projects.html">Открыть проект</a>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Модальное окно: новая задача со сроком -->
+  <div class="modal" id="taskModal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-dialog modal-small" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
+      <form id="taskForm" novalidate>
+        <header class="modal-head">
+          <h2 id="taskModalTitle">Новая задача</h2>
+          <button type="button" class="icon-btn" data-close aria-label="Закрыть">✕</button>
+        </header>
+        <div class="modal-body form-grid one-col">
+          <p class="hint" id="taskNoProjects" hidden>Проектов пока нет. <a href="projects.html#new">Создайте проект</a>, чтобы добавлять задачи.</p>
+          <div class="field">
+            <label for="tProject">Проект <span class="req" aria-hidden="true">*</span></label>
+            <select id="tProject" required aria-describedby="err-tProject"></select>
+            <p class="field-error" id="err-tProject" role="alert"></p>
+          </div>
+          <div class="field">
+            <label for="tText">Задача <span class="req" aria-hidden="true">*</span></label>
+            <input id="tText" maxlength="200" required autocomplete="off" aria-describedby="err-tText" placeholder="Например, подготовить релиз">
+            <p class="field-error" id="err-tText" role="alert"></p>
+          </div>
+          <div class="field">
+            <label for="tDue">Срок закрытия <span class="req" aria-hidden="true">*</span></label>
+            <input id="tDue" type="date" required aria-describedby="err-tDue">
+            <p class="field-error" id="err-tDue" role="alert"></p>
+          </div>
+        </div>
+        <footer class="modal-foot">
+          <button type="button" class="btn btn-ghost" data-close>Отмена</button>
+          <button type="submit" class="btn btn-primary" id="taskSubmit">Добавить</button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
+  <!-- Модальное окно: подтверждение -->
+  <div class="modal" id="confirmModal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-dialog modal-small" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmText">
+      <header class="modal-head">
+        <h2 id="confirmTitle">Подтвердите действие</h2>
+      </header>
+      <div class="modal-body"><p id="confirmText"></p></div>
+      <footer class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-close id="confirmCancel">Отмена</button>
+        <button type="button" class="btn btn-danger" id="confirmOk">Подтвердить</button>
+      </footer>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts" role="status" aria-live="polite" aria-atomic="false"></div>
+
+  <script src="js/utils.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/contacts-store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/team.js"></script>
+  <script src="js/shell.js"></script>
+  <script src="js/cal-dates.js"></script>
+  <script src="js/calendar.js"></script>
+</body>
+</html>

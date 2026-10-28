@@ -279,7 +279,8 @@
 
   /* ---------- Карточка проекта ---------- */
   var detailHandlers = {
-    addTask: function (id, text) { S.addTask(id, text); var i = $('taskInput'); if (i) i.focus(); },
+    addTask: function (id, text, due) { S.addTask(id, text, due); var i = $('taskInput'); if (i) i.focus(); },
+    setTaskDue: function (id, tid, due) { S.setTaskDue(id, tid, due); },
     toggleTask: function (id, tid, done) { S.toggleTask(id, tid, done); },
     removeTask: function (id, tid) { S.removeTask(id, tid); var i = $('taskInput'); if (i) i.focus(); },
     setAuto: function (id, on) { S.setAutoProgress(id, on); var c = $('detailsAuto'); if (c) c.focus(); }
