@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Контакты: сотрудники команды и внешние контакты по ИТ-проектам.">
+  <meta name="color-scheme" content="light dark">
+  <title>Контакты — ИТ-проекты</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236366f1'/%3E%3Cpath d='M9 22V10h3v12zm5 0V14h3v8zm5 0v-6h3v6z' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script src="js/theme-init.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Перейти к содержимому</a>
+
+  <div class="app" id="app">
+    <aside class="sidebar" id="sidebar" aria-label="Боковая панель">
+      <div class="brand">
+        <span class="brand-logo" aria-hidden="true">
+          <svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="8" fill="currentColor"/><path d="M9 22V10h3v12zm5 0V14h3v8zm5 0v-6h3v6z" fill="#fff"/></svg>
+        </span>
+        <span class="brand-text">
+          <strong>ProjectBoard</strong>
+          <small>учёт ИТ-проектов</small>
+        </span>
+      </div>
+
+      <nav class="nav" aria-label="Разделы">
+        <ul>
+          <li><a href="index.html" class="nav-link"><span class="nav-ico" aria-hidden="true">◔</span>Аналитика</a></li>
+          <li><a href="projects.html" class="nav-link"><span class="nav-ico" aria-hidden="true">☰</span>Проекты</a></li>
+          <li><a href="contacts.html" class="nav-link" aria-current="page"><span class="nav-ico" aria-hidden="true">☺</span>Контакты</a></li>
+        </ul>
+      </nav>
+
+      <section class="sidebar-section" aria-labelledby="data-title">
+        <h2 class="sidebar-title" id="data-title">Контакты: данные</h2>
+        <div class="sidebar-actions">
+          <button type="button" class="btn btn-ghost btn-block" data-action="export-json">⬇ Экспорт JSON</button>
+          <button type="button" class="btn btn-ghost btn-block" data-action="import-json">⬆ Импорт JSON</button>
+          <input type="file" id="importFile" accept="application/json,.json" hidden>
+          <button type="button" class="btn btn-ghost btn-block" data-action="export-csv" title="Без фотографий">⬇ Экспорт CSV</button>
+          <button type="button" class="btn btn-ghost btn-block" data-action="demo">✦ Демо-данные</button>
+          <button type="button" class="btn btn-ghost btn-block btn-danger-text" data-action="clear">✕ Очистить контакты</button>
+        </div>
+      </section>
+
+      <p class="sidebar-foot">Данные хранятся локально в браузере (localStorage) и синхронизируются между вкладками.</p>
+    </aside>
+    <div class="sidebar-backdrop" id="sidebarBackdrop" hidden></div>
+
+    <div class="content">
+      <header class="topbar">
+        <button type="button" class="icon-btn menu-btn" id="menuBtn" aria-label="Открыть меню" aria-controls="sidebar" aria-expanded="false">
+          <span aria-hidden="true">☰</span>
+        </button>
+        <div class="topbar-title">
+          <h1>Контакты</h1>
+          <p class="topbar-sub" id="todayLabel"></p>
+        </div>
+        <div class="topbar-actions">
+          <button type="button" class="icon-btn" id="themeBtn" aria-pressed="false" aria-label="Тёмная тема" title="Переключить тему">
+            <span class="theme-ico theme-ico-dark" aria-hidden="true">☾</span>
+            <span class="theme-ico theme-ico-light" aria-hidden="true">☀</span>
+          </button>
+          <button type="button" class="btn btn-primary" data-action="new-contact" aria-label="Новый контакт"><span aria-hidden="true">＋</span><span class="btn-label"> Новый контакт</span></button>
+        </div>
+      </header>
+
+      <main id="main" tabindex="-1">
+        <section id="contacts" class="section" aria-labelledby="contacts-title">
+          <div class="section-head">
+            <h2 class="section-title" id="contacts-title">Все контакты <span class="count" id="contactsCount"></span></h2>
+            <div class="view-toggle" role="group" aria-label="Вид отображения">
+              <button type="button" class="seg-btn" data-view="cards" aria-pressed="true">▦ Карточки</button>
+              <button type="button" class="seg-btn" data-view="table" aria-pressed="false">▤ Таблица</button>
+            </div>
+          </div>
+
+          <form class="toolbar" id="filters" role="search" aria-label="Фильтры контактов">
+            <div class="field field-search">
+              <label for="cSearch" class="sr-only">Поиск</label>
+              <input type="search" id="cSearch" placeholder="Поиск по ФИО, организации, почте, телефону, комментарию…" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="cType">Тип</label>
+              <select id="cType">
+                <option value="">Все</option>
+                <option value="team">Только команда работников</option>
+                <option value="external">Внешние</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="cOrg">Организация</label>
+              <select id="cOrg"><option value="">Все</option></select>
+            </div>
+            <div class="field">
+              <label for="cSort">Сортировка</label>
+              <select id="cSort">
+                <option value="name:asc">ФИО: А → Я</option>
+                <option value="name:desc">ФИО: Я → А</option>
+                <option value="org:asc">Организация: А → Я</option>
+                <option value="org:desc">Организация: Я → А</option>
+              </select>
+            </div>
+            <button type="button" class="btn btn-ghost" id="resetFilters">Сбросить</button>
+          </form>
+
+          <div id="contactsView" class="contacts-view"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Модальное окно: форма контакта -->
+  <div class="modal" id="contactModal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="contactModalTitle">
+      <form id="contactForm" novalidate>
+        <header class="modal-head">
+          <h2 id="contactModalTitle">Новый контакт</h2>
+          <button type="button" class="icon-btn" data-close aria-label="Закрыть">✕</button>
+        </header>
+        <div class="modal-body form-grid">
+          <div class="field span-2 photo-field">
+            <span class="photo-preview" id="cPhotoPreview"></span>
+            <div class="photo-controls">
+              <span class="photo-label" id="photoLabel">Фото</span>
+              <div class="photo-buttons">
+                <button type="button" class="btn btn-ghost sm" id="cPhotoPick" aria-describedby="photoLabel photoHint err-photo">Загрузить фото</button>
+                <button type="button" class="btn btn-ghost sm btn-danger-text" id="cPhotoRemove" hidden>Удалить фото</button>
+              </div>
+              <input type="file" id="cPhotoFile" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+              <p class="hint" id="photoHint">JPG, PNG, WebP или GIF до 5 МБ. Фото обрезается по квадрату и уменьшается до 256 px.</p>
+              <p class="field-error" id="err-photo" role="alert"></p>
+            </div>
+          </div>
+          <div class="field span-2">
+            <label for="cName">ФИО <span class="req" aria-hidden="true">*</span></label>
+            <input id="cName" name="name" required maxlength="120" aria-describedby="err-name" autocomplete="off">
+            <p class="field-error" id="err-name" role="alert"></p>
+          </div>
+          <div class="field">
+            <label for="cPhone">Телефон</label>
+            <input id="cPhone" name="phone" type="tel" inputmode="tel" maxlength="40" placeholder="+7 900 000-00-00" aria-describedby="err-phone" autocomplete="off">
+            <p class="field-error" id="err-phone" role="alert"></p>
+          </div>
+          <div class="field">
+            <label for="cEmail">Почта</label>
+            <input id="cEmail" name="email" type="email" inputmode="email" maxlength="254" placeholder="name@example.com" aria-describedby="err-email" autocomplete="off">
+            <p class="field-error" id="err-email" role="alert"></p>
+          </div>
+          <div class="field span-2">
+            <label for="cOrgInput">Организация</label>
+            <input id="cOrgInput" name="org" maxlength="120" list="orgList" aria-describedby="err-org" autocomplete="off">
+            <datalist id="orgList"></datalist>
+            <p class="field-error" id="err-org" role="alert"></p>
+          </div>
+          <div class="field span-2">
+            <label for="cComment">Комментарии</label>
+            <textarea id="cComment" name="comment" rows="3" maxlength="2000" aria-describedby="err-comment"></textarea>
+            <p class="field-error" id="err-comment" role="alert"></p>
+          </div>
+          <div class="field span-2">
+            <label class="check">
+              <input type="checkbox" id="cIsTeam" name="isTeam" aria-describedby="teamHint">
+              <span>Команда работников</span>
+            </label>
+            <p class="hint" id="teamHint">Такой контакт можно выбрать в команду проекта.</p>
+          </div>
+        </div>
+        <footer class="modal-foot">
+          <button type="button" class="btn btn-ghost" data-close>Отмена</button>
+          <button type="submit" class="btn btn-primary">Сохранить</button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
+  <!-- Модальное окно: карточка контакта -->
+  <div class="modal" id="contactDetailsModal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="contactDetailsTitle">
+      <header class="modal-head">
+        <h2 id="contactDetailsTitle">Контакт</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Закрыть">✕</button>
+      </header>
+      <div class="modal-body" id="contactDetailsBody"></div>
+      <footer class="modal-foot">
+        <button type="button" class="btn btn-danger" id="contactDelete">Удалить</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-ghost" data-close>Закрыть</button>
+        <button type="button" class="btn btn-primary" id="contactEdit">Изменить</button>
+      </footer>
+    </div>
+  </div>
+  <!-- Модальное окно: подтверждение -->
+  <div class="modal" id="confirmModal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-dialog modal-small" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmText">
+      <header class="modal-head">
+        <h2 id="confirmTitle">Подтвердите действие</h2>
+      </header>
+      <div class="modal-body"><p id="confirmText"></p></div>
+      <footer class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-close id="confirmCancel">Отмена</button>
+        <button type="button" class="btn btn-danger" id="confirmOk">Подтвердить</button>
+      </footer>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts" role="status" aria-live="polite" aria-atomic="false"></div>
+
+  <script src="js/utils.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/contacts-store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/team.js"></script>
+  <script src="js/shell.js"></script>
+  <script src="js/photo.js"></script>
+  <script src="js/contacts.js"></script>
+</body>
+</html>

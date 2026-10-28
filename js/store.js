@@ -48,6 +48,16 @@
     return Math.round(done / tasks.length * 100);
   }
 
+  /** Список ID контактов-участников (без дублей). */
+  function normalizeIds(list) {
+    if (!Array.isArray(list)) return [];
+    var seen = {};
+    return list.map(function (x) { return str(x, 60); }).filter(function (x) {
+      if (!x || seen[x]) return false;
+      seen[x] = true; return true;
+    }).slice(0, 50);
+  }
+
   /** Приводит произвольный объект к корректной структуре проекта. */
   function normalize(p) {
     p = p || {};
@@ -61,6 +71,7 @@
       priority: byId(PRIORITIES, p.priority) ? p.priority : 'medium',
       stack: U.splitList(p.stack),
       team: U.splitList(p.team),
+      teamIds: normalizeIds(p.teamIds),
       start: U.isValidDate(p.start) ? p.start : '',
       deadline: U.isValidDate(p.deadline) ? p.deadline : '',
       budget: Math.round(num(p.budget, 0, 1e12)),
@@ -231,12 +242,32 @@
   }
   function setAutoProgress(id, on) { return update(id, { autoProgress: !!on }); }
 
+  /**
+   * Пакетное изменение команд проектов (миграция имён, удаление контакта).
+   * fn(project) возвращает {team, teamIds} или null, если менять нечего.
+   * Сохраняет один раз; возвращает число изменённых проектов.
+   */
+  function mapTeams(fn) {
+    var changed = 0;
+    projects = projects.map(function (p) {
+      var patch = fn(p);
+      if (!patch) return p;
+      var next = normalize(Object.assign({}, p, patch, { updatedAt: new Date().toISOString() }));
+      if (JSON.stringify(next.team) === JSON.stringify(p.team) && JSON.stringify(next.teamIds) === JSON.stringify(p.teamIds)) return p;
+      changed++;
+      return next;
+    });
+    if (changed) { save(); emit('update'); }
+    return changed;
+  }
+
   function loadDemo() { projects = demoProjects(); save(); emit('demo'); }
   function clearAll() { projects = []; save(); emit('clear'); }
 
   /* ---------- Импорт / экспорт ---------- */
-  function exportJSON() {
-    return JSON.stringify({ app: 'it-projects-dashboard', version: 1, exportedAt: new Date().toISOString(), projects: projects }, null, 2);
+  /** extra — дополнительные разделы резервной копии (например, contacts). Формат проектов не меняется. */
+  function exportJSON(extra) {
+    return JSON.stringify(Object.assign({ app: 'it-projects-dashboard', version: 1, exportedAt: new Date().toISOString(), projects: projects }, extra || {}), null, 2);
   }
 
   /** Импорт резервной копии. mode: 'replace' | 'merge'. Возвращает число импортированных проектов. */
@@ -258,10 +289,11 @@
     return items.length;
   }
 
-  function exportCSV() {
+  /** teamNames(p) — имена участников (контакты + имена без контакта); по умолчанию только p.team. */
+  function exportCSV(teamNames) {
     var header = ['Название', 'Клиент/владелец', 'Описание', 'Статус', 'Приоритет', 'Стек', 'Команда', 'Начало', 'Дедлайн', 'Бюджет', 'Потрачено', 'Прогресс, %', 'Репозиторий', 'Теги', 'Задач всего', 'Задач выполнено'];
     var rows = projects.map(function (p) {
-      return [p.name, p.client, p.description, statusLabel(p.status), priorityLabel(p.priority), p.stack.join(', '), p.team.join(', '),
+      return [p.name, p.client, p.description, statusLabel(p.status), priorityLabel(p.priority), p.stack.join(', '), (teamNames ? teamNames(p) : p.team).join(', '),
         p.start, p.deadline, p.budget, p.spent, p.progress, p.repo, p.tags.join(', '), p.tasks.length,
         p.tasks.filter(function (t) { return t.done; }).length];
     });
@@ -295,7 +327,7 @@
     statusLabel: statusLabel, priorityLabel: priorityLabel, priorityWeight: priorityWeight, statusById: function (id) { return byId(STATUSES, id); },
     normalize: normalize, validate: validate, taskProgress: taskProgress, demoProjects: demoProjects,
     load: load, reload: reload, save: save, subscribe: subscribe, all: all, get: get,
-    create: create, update: update, remove: remove, setStatus: setStatus,
+    create: create, update: update, remove: remove, setStatus: setStatus, mapTeams: mapTeams,
     addTask: addTask, toggleTask: toggleTask, removeTask: removeTask, setAutoProgress: setAutoProgress,
     loadDemo: loadDemo, clearAll: clearAll, exportJSON: exportJSON, importJSON: importJSON, exportCSV: exportCSV,
     isOverdue: isOverdue, stats: stats,

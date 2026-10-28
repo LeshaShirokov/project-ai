@@ -2,7 +2,7 @@
 (function (global) {
   'use strict';
   var PD = global.PD = global.PD || {};
-  var U = PD.utils, S = PD.store, UI = PD.ui;
+  var U = PD.utils, S = PD.store, C = PD.contacts, UI = PD.ui;
 
   var THEME_KEY = 'itpd.theme';
 
@@ -58,17 +58,28 @@
 
     // Синхронизация между вкладками и страницами
     global.addEventListener('storage', function (e) {
-      if (e.key === S.STORAGE_KEY || e.key === null) S.reload();
+      if (e.key === null) { C.reload(); S.reload(); }
+      else if (e.key === S.STORAGE_KEY) S.reload();
+      else if (e.key === C.STORAGE_KEY) C.reload();
       else if (e.key === THEME_KEY && (e.newValue === 'dark' || e.newValue === 'light')) applyTheme(e.newValue);
       else if (opts.onStorage) opts.onStorage(e);
     });
 
-    S.subscribe(function (reason) {
+    // Обе коллекции (проекты и контакты) нужны на всех страницах: команды проектов ссылаются на контакты.
+    var ready = false, syncToast = 0;
+    function onChange(reason) {
+      if (!ready) return;
       if (opts.render) opts.render(reason);
-      if (reason === 'sync') UI.toast('Данные обновлены в другой вкладке');
-    });
+      if (reason === 'sync' && Date.now() - syncToast > 1000) { syncToast = Date.now(); UI.toast('Данные обновлены в другой вкладке'); }
+    }
+    S.subscribe(onChange);
+    C.subscribe(onChange);
+    C.load();
     S.load();
-    if (!S.storageOk()) UI.toast('localStorage недоступен — данные не сохранятся', 'error');
+    PD.team.migrate(); // старые текстовые имена команды → ссылки на контакты (если ФИО совпало)
+    ready = true;
+    if (opts.render) opts.render('load');
+    if (!S.storageOk() || !C.storageOk()) UI.toast('localStorage недоступен — данные не сохранятся', 'error');
   }
 
   /** Ссылка на проект на странице «Проекты» (относительная — работает и под /project-ai/). */

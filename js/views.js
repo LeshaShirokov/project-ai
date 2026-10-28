@@ -2,7 +2,7 @@
 (function (global) {
   'use strict';
   var PD = global.PD = global.PD || {};
-  var U = PD.utils, S = PD.store, UI = PD.ui;
+  var U = PD.utils, S = PD.store, UI = PD.ui, T = PD.team;
   var h = U.h;
   var statusBadge = UI.statusBadge, priorityBadge = UI.priorityBadge, progressBar = UI.progressBar, chips = UI.chips, deadlineCell = UI.deadlineCell;
 
@@ -11,21 +11,6 @@
       class: 'status-select', 'aria-label': 'Статус проекта «' + p.name + '»', dataset: { focusKey: 'status-' + p.id },
       onchange: function (e) { onChange(p.id, e.target.value); }
     }, S.STATUSES.map(function (st) { return h('option', { value: st.id, selected: st.id === p.status }, st.label); }));
-  }
-
-  function initials(name) {
-    return name.split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w.charAt(0).toUpperCase(); }).join('') || '?';
-  }
-  function hue(str) { var x = 0; for (var i = 0; i < str.length; i++) x = (x * 31 + str.charCodeAt(i)) % 360; return x; }
-  /** Аватары команды (инициалы); полный список — в подсказке и для скринридеров. */
-  function avatars(team) {
-    if (!team || !team.length) return h('span', { class: 'muted' }, '—');
-    var shown = team.slice(0, 3);
-    return h('span', { class: 'avatars', title: team.join(', ') }, [
-      h('span', { class: 'sr-only' }, team.join(', ')),
-      shown.map(function (n) { return h('span', { class: 'avatar', 'aria-hidden': 'true', style: 'background:hsl(' + hue(n) + ' 65% 55%)' }, initials(n)); }),
-      team.length > 3 ? h('span', { class: 'avatar avatar-more', 'aria-hidden': 'true' }, '+' + (team.length - 3)) : null
-    ]);
   }
 
   /* ---------- Таблица ---------- */
@@ -48,7 +33,7 @@
           h('td', { 'data-label': 'Статус' }, statusBadge(p.status)),
           h('td', { 'data-label': 'Приоритет' }, priorityBadge(p.priority)),
           h('td', { 'data-label': 'Стек', class: 'cell-stack' }, [chips(p.stack.slice(0, 2)), p.stack.length > 2 ? h('small', { class: 'muted more', title: p.stack.join(', ') }, '+' + (p.stack.length - 2)) : null]),
-          h('td', { 'data-label': 'Команда', class: 'cell-team' }, avatars(p.team)),
+          h('td', { 'data-label': 'Команда', class: 'cell-team' }, T.avatars(p)),
           h('td', { 'data-label': 'Дедлайн' }, deadlineCell(p)),
           h('td', { 'data-label': 'Бюджет', class: 'cell-money' }, [
             h('span', null, U.moneyShort(p.budget)),
@@ -115,6 +100,7 @@
       p.client ? h('p', { class: 'kc-client muted' }, p.client) : null,
       p.stack.length ? chips(p.stack.slice(0, 4)) : null,
       h('div', { class: 'kc-progress' }, [progressBar(p.progress, 'Прогресс «' + p.name + '»'), h('small', null, p.progress + '%')]),
+      (p.teamIds.length || p.team.length) ? h('div', { class: 'kc-team' }, T.avatars(p, 5)) : null,
       h('div', { class: 'kc-meta' }, [deadlineCell(p), p.tasks.length ? h('small', { class: 'muted' }, '☑ ' + p.tasks.filter(function (t) { return t.done; }).length + '/' + p.tasks.length) : null]),
       h('div', { class: 'kc-foot' }, [
         statusSelect(p, handlers.setStatus),
@@ -142,7 +128,7 @@
     if (p.description) root.appendChild(h('p', { class: 'details-desc' }, p.description));
     root.appendChild(h('dl', { class: 'meta-grid' }, [
       meta('Клиент / владелец', p.client || '—'),
-      meta('Команда', p.team.length ? p.team.join(', ') : '—'),
+      h('div', { class: 'meta-item meta-team' }, [h('dt', null, 'Команда'), h('dd', null, T.memberList(p))]),
       meta('Стек', chips(p.stack)),
       meta('Теги', chips(p.tags, 'chip-tag')),
       meta('Начало', U.formatDate(p.start)),

@@ -119,7 +119,29 @@
       h('small', { class: cls }, finished ? (p.status === 'done' ? 'завершён' : 'отменён') : U.daysLabel(d))
     ]);
   }
+  /* ---------- Аватары ---------- */
+  function initials(name) {
+    return String(name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w.charAt(0).toUpperCase(); }).join('') || '?';
+  }
+  function hue(str) { str = String(str || ''); var x = 0; for (var i = 0; i < str.length; i++) x = (x * 31 + str.charCodeAt(i)) % 360; return x; }
+  /**
+   * Аватар человека: фото (data URL, проверенный хранилищем) или инициалы на цветном фоне.
+   * person: {name, photo?, missing?}; opts.size: '' | 'md' | 'lg' | 'xl'; opts.decorative — скрыть от скринридеров.
+   */
+  function avatar(person, opts) {
+    opts = opts || {};
+    var name = person && person.name || '';
+    var cls = 'avatar' + (opts.size ? ' avatar-' + opts.size : '') + (person && person.missing ? ' avatar-missing' : '');
+    var a11y = opts.decorative !== false ? { 'aria-hidden': 'true' } : { role: 'img', 'aria-label': name };
+    if (person && person.photo && PD.contacts && PD.contacts.isValidPhoto(person.photo)) {
+      return h('span', Object.assign({ class: cls + ' has-photo' }, a11y), h('img', { src: person.photo, alt: '', loading: 'lazy', decoding: 'async' }));
+    }
+    var style = person && person.missing ? null : 'background:hsl(' + hue(name) + ' 65% 45%)';
+    return h('span', Object.assign({ class: cls, style: style }, a11y), person && person.missing ? '?' : initials(name));
+  }
+
   PD.ui = {
+    initials: initials, hue: hue, avatar: avatar,
     openModal: openModal, closeModal: closeModal, initModals: initModals, confirm: confirmDialog, toast: toast,
     statusBadge: statusBadge, priorityBadge: priorityBadge, progressBar: progressBar, chips: chips, deadlineCell: deadlineCell
   };

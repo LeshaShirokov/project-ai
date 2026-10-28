@@ -29,18 +29,19 @@
         <ul>
           <li><a href="index.html" class="nav-link"><span class="nav-ico" aria-hidden="true">◔</span>Аналитика</a></li>
           <li><a href="projects.html" class="nav-link" aria-current="page"><span class="nav-ico" aria-hidden="true">☰</span>Проекты</a></li>
+          <li><a href="contacts.html" class="nav-link"><span class="nav-ico" aria-hidden="true">☺</span>Контакты</a></li>
         </ul>
       </nav>
 
       <section class="sidebar-section" aria-labelledby="data-title">
         <h2 class="sidebar-title" id="data-title">Данные</h2>
         <div class="sidebar-actions">
-          <button type="button" class="btn btn-ghost btn-block" data-action="export-json">⬇ Экспорт JSON</button>
+          <button type="button" class="btn btn-ghost btn-block" data-action="export-json" title="Резервная копия: проекты и контакты">⬇ Экспорт JSON</button>
           <button type="button" class="btn btn-ghost btn-block" data-action="import-json">⬆ Импорт JSON</button>
           <input type="file" id="importFile" accept="application/json,.json" hidden>
           <button type="button" class="btn btn-ghost btn-block" data-action="export-csv">⬇ Экспорт CSV</button>
           <button type="button" class="btn btn-ghost btn-block" data-action="demo">✦ Демо-данные</button>
-          <button type="button" class="btn btn-ghost btn-block btn-danger-text" data-action="clear">✕ Очистить всё</button>
+          <button type="button" class="btn btn-ghost btn-block btn-danger-text" data-action="clear">✕ Очистить проекты</button>
         </div>
       </section>
 
@@ -136,10 +137,17 @@
             <label for="pClient">Клиент / владелец</label>
             <input id="pClient" name="client" maxlength="120" autocomplete="off">
           </div>
-          <div class="field">
-            <label for="pTeam">Команда <small>(через запятую)</small></label>
-            <input id="pTeam" name="team" autocomplete="off" placeholder="Анна, Игорь">
-          </div>
+          <fieldset class="field span-2 team-field" aria-describedby="pTeamHint">
+            <legend>Команда <small id="pTeamCount"></small></legend>
+            <div class="team-search">
+              <label for="pTeamSearch" class="sr-only">Поиск по сотрудникам</label>
+              <input type="search" id="pTeamSearch" placeholder="Поиск сотрудника…" autocomplete="off" aria-controls="pTeamList">
+            </div>
+            <ul class="team-picker" id="pTeamList" aria-label="Сотрудники из контактов"></ul>
+            <p class="hint" id="pTeamHint"></p>
+            <label for="pTeam">Другие участники, не из контактов <small>(через запятую)</small></label>
+            <input id="pTeam" name="team" autocomplete="off" placeholder="Например, подрядчик Иван">
+          </fieldset>
           <div class="field span-2">
             <label for="pDesc">Описание</label>
             <textarea id="pDesc" name="description" rows="3" maxlength="2000"></textarea>
@@ -243,7 +251,9 @@
 
   <script src="js/utils.js"></script>
   <script src="js/store.js"></script>
+  <script src="js/contacts-store.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/team.js"></script>
   <script src="js/shell.js"></script>
   <script src="js/views.js"></script>
   <script src="js/projects.js"></script>

@@ -2,7 +2,7 @@
 (function (global) {
   'use strict';
   var PD = global.PD = global.PD || {};
-  var U = PD.utils, S = PD.store, UI = PD.ui, V = PD.views, SH = PD.shell;
+  var U = PD.utils, S = PD.store, C = PD.contacts, T = PD.team, UI = PD.ui, V = PD.views, SH = PD.shell;
   var h = U.h;
 
   var VIEW_KEY = 'itpd.view';
@@ -12,7 +12,8 @@
     sort: 'deadline:asc',
     view: 'table',
     editingId: null,
-    detailsId: null
+    detailsId: null,
+    unknownTeamIds: [] // участники, которых нет в контактах (сохраняются как есть)
   };
 
   function $(id) { return document.getElementById(id); }
@@ -26,7 +27,7 @@
       if (f.priority && p.priority !== f.priority) return false;
       if (f.tech && !p.stack.some(function (t) { return t.toLowerCase() === f.tech.toLowerCase(); })) return false;
       if (q) {
-        var hay = [p.name, p.client, p.description, p.repo].concat(p.stack, p.team, p.tags).join(' ').toLowerCase();
+        var hay = [p.name, p.client, p.description, p.repo].concat(p.stack, T.names(p), p.tags).join(' ').toLowerCase();
         if (hay.indexOf(q) === -1) return false;
       }
       return true;
@@ -81,6 +82,7 @@
     $('projectsCount').textContent = list.length === total ? String(total) : list.length + ' из ' + total;
     if (state.view === 'kanban') V.renderKanban($('projectsView'), list, handlers);
     else V.renderTable($('projectsView'), list, handlers);
+    if (!$('projectModal').hidden) renderTeamPicker(selectedTeamIds().concat(state.unknownTeamIds));
     if (state.detailsId) {
       var p = S.get(state.detailsId);
       if (p) renderDetails(p); else UI.closeModal($('detailsModal'));
@@ -138,10 +140,67 @@
     fields.progress.addEventListener('input', syncProgressOut);
     fields.autoProgress.addEventListener('change', syncAuto);
     form.addEventListener('submit', function (e) { e.preventDefault(); submitForm(); });
+    $('pTeamSearch').addEventListener('input', filterTeamPicker);
+    $('pTeamSearch').addEventListener('keydown', function (e) { if (e.key === 'Enter') e.preventDefault(); });
+    $('pTeamList').addEventListener('change', updateTeamCount);
     Object.keys(fields).forEach(function (k) {
       fields[k].addEventListener('input', function () { setError(k, ''); });
     });
   }
+  /* ---------- Выбор команды из контактов ---------- */
+  function selectedTeamIds() {
+    return Array.prototype.map.call($('pTeamList').querySelectorAll('input[type="checkbox"]:checked'), function (cb) { return cb.value; });
+  }
+  function updateTeamCount() {
+    var n = selectedTeamIds().length + state.unknownTeamIds.length;
+    $('pTeamCount').textContent = n ? '— выбрано: ' + n : '';
+  }
+  /** Чек-лист сотрудников (контакты с «Команда работников») + уже выбранные контакты без этой отметки. */
+  function renderTeamPicker(selected) {
+    var list = $('pTeamList'), hint = $('pTeamHint');
+    var pool = C.team();
+    selected.forEach(function (id) { var c = C.get(id); if (c && !c.isTeam) pool.push(c); });
+    state.unknownTeamIds = selected.filter(function (id) { return !C.get(id); });
+    pool.sort(function (a, b) { return a.name.localeCompare(b.name, 'ru'); });
+    U.clear(list);
+    pool.forEach(function (c) {
+      var cbId = 'pTeam-' + c.id;
+      list.appendChild(h('li', { class: 'team-option', dataset: { search: [c.name, c.org, c.email].join(' ').toLowerCase() } }, [
+        h('input', { type: 'checkbox', id: cbId, value: c.id, checked: selected.indexOf(c.id) >= 0 }),
+        h('label', { for: cbId }, [
+          UI.avatar(c),
+          h('span', { class: 'team-option-text' }, [
+            h('span', { class: 'team-option-name' }, c.name),
+            c.org || !c.isTeam ? h('small', { class: 'muted' }, [c.org, !c.isTeam ? '(не в команде работников)' : ''].filter(Boolean).join(' ')) : null
+          ])
+        ])
+      ]));
+    });
+    list.appendChild(h('li', { class: 'team-empty muted', hidden: true }, 'Никого не найдено'));
+    list.hidden = !pool.length;
+    $('pTeamSearch').parentNode.hidden = pool.length < 2;
+    U.clear(hint);
+    if (!pool.length) {
+      hint.appendChild(document.createTextNode('В контактах пока нет сотрудников с отметкой «Команда работников». '));
+      hint.appendChild(h('a', { href: 'contacts.html#new' }, 'Добавить контакт'));
+    } else {
+      hint.appendChild(document.createTextNode('Список — контакты с отметкой «Команда работников». '));
+      hint.appendChild(h('a', { href: 'contacts.html' }, 'Открыть контакты'));
+    }
+    if (state.unknownTeamIds.length) hint.appendChild(h('span', { class: 'block' }, 'Ещё ' + state.unknownTeamIds.length + ' участн. нет в контактах — они сохранятся без изменений.'));
+    filterTeamPicker();
+    updateTeamCount();
+  }
+  function filterTeamPicker() {
+    var q = $('pTeamSearch').value.trim().toLowerCase(), any = false;
+    $('pTeamList').querySelectorAll('.team-option').forEach(function (li) {
+      var show = !q || li.dataset.search.indexOf(q) >= 0;
+      li.hidden = !show; if (show) any = true;
+    });
+    var empty = $('pTeamList').querySelector('.team-empty');
+    if (empty) empty.hidden = any;
+  }
+
   function syncProgressOut() { $('pProgressOut').textContent = fields.progress.value + '%'; }
   function syncAuto() {
     var p = state.editingId ? S.get(state.editingId) : null;
@@ -166,7 +225,11 @@
     var d = p || { status: 'planning', priority: 'medium', progress: 0, start: U.toISODate(U.today()) };
     fields.name.value = d.name || '';
     fields.client.value = d.client || '';
-    fields.team.value = (d.team || []).join(', ');
+    // Старые текстовые имена, совпавшие с сотрудником из контактов, сразу отмечаются в списке
+    var legacy = T.matchLegacy(d.team || []);
+    fields.team.value = legacy.rest.join(', ');
+    $('pTeamSearch').value = '';
+    renderTeamPicker((d.teamIds || []).concat(legacy.ids.filter(function (id) { return (d.teamIds || []).indexOf(id) < 0; })));
     fields.description.value = d.description || '';
     fields.status.value = d.status;
     fields.priority.value = d.priority;
@@ -185,7 +248,8 @@
 
   function readForm() {
     return {
-      name: fields.name.value.trim(), client: fields.client.value, team: fields.team.value, description: fields.description.value,
+      name: fields.name.value.trim(), client: fields.client.value, team: fields.team.value,
+      teamIds: selectedTeamIds().concat(state.unknownTeamIds), description: fields.description.value,
       status: fields.status.value, priority: fields.priority.value, stack: fields.stack.value, start: fields.start.value,
       deadline: fields.deadline.value, budget: fields.budget.value.trim(), spent: fields.spent.value.trim(),
       progress: fields.progress.value, autoProgress: fields.autoProgress.checked, repo: fields.repo.value.trim(), tags: fields.tags.value
@@ -194,6 +258,10 @@
 
   function submitForm() {
     var data = readForm();
+    // Имена, введённые текстом, но совпавшие с сотрудником из контактов, превращаются в ссылки на контакт
+    var typed = T.matchLegacy(U.splitList(data.team));
+    data.team = typed.rest;
+    typed.ids.forEach(function (id) { if (data.teamIds.indexOf(id) < 0) data.teamIds.push(id); });
     var errors = S.validate(data);
     Object.keys(fields).forEach(function (k) { setError(k, errors[k]); });
     var keys = Object.keys(errors);
@@ -230,23 +298,36 @@
 
   /* ---------- Данные ---------- */
   function stamp() { var d = new Date(); return U.toISODate(d) + '_' + String(d.getHours()).padStart(2, '0') + String(d.getMinutes()).padStart(2, '0'); }
-  function exportJSON() { U.download('it-projects_' + stamp() + '.json', S.exportJSON(), 'application/json;charset=utf-8'); UI.toast('Резервная копия сохранена'); }
-  function exportCSV() { U.download('it-projects_' + stamp() + '.csv', S.exportCSV(), 'text/csv;charset=utf-8'); UI.toast('CSV выгружен'); }
+  function exportJSON() { U.download('it-projects_' + stamp() + '.json', S.exportJSON({ contacts: C.all() }), 'application/json;charset=utf-8'); UI.toast('Резервная копия сохранена'); }
+  function exportCSV() { U.download('it-projects_' + stamp() + '.csv', S.exportCSV(T.names), 'text/csv;charset=utf-8'); UI.toast('CSV выгружен'); }
 
+  /**
+   * Импорт резервной копии. Старый формат (только projects) по-прежнему поддерживается;
+   * если в файле есть раздел contacts (новые копии), контакты тоже заменяются.
+   */
   function importText(text) {
-    var preview;
+    var preview, contacts = null;
     try {
       var data = JSON.parse(text);
       preview = Array.isArray(data) ? data : (data && data.projects);
       if (!Array.isArray(preview)) throw new Error('В файле не найден список проектов');
+      if (data && Array.isArray(data.contacts)) contacts = data.contacts;
     } catch (e) {
       UI.toast('Ошибка импорта: ' + (e instanceof SyntaxError ? 'файл не является корректным JSON' : e.message), 'error');
       return Promise.resolve(false);
     }
-    return UI.confirm('Заменить текущие данные (' + S.all().length + ' пр.) проектами из файла (' + preview.length + ' пр.)?', 'Импортировать').then(function (ok) {
+    var msg = 'Заменить текущие данные (' + S.all().length + ' пр.) проектами из файла (' + preview.length + ' пр.)?';
+    if (contacts) msg = 'Заменить текущие данные (' + S.all().length + ' пр., ' + C.all().length + ' конт.) данными из файла (' + preview.length + ' пр., ' + contacts.length + ' конт.)?';
+    else msg += ' Контакты не изменятся.';
+    return UI.confirm(msg, 'Импортировать').then(function (ok) {
       if (!ok) return false;
-      try { var n = S.importJSON(text, 'replace'); UI.toast('Импортировано проектов: ' + n, 'success'); return true; }
-      catch (e) { UI.toast('Ошибка импорта: ' + e.message, 'error'); return false; }
+      try {
+        var nc = contacts ? C.importJSON(text, 'replace') : 0;
+        var n = S.importJSON(text, 'replace');
+        T.migrate();
+        UI.toast('Импортировано проектов: ' + n + (contacts ? ', контактов: ' + nc : ''), 'success');
+        return true;
+      } catch (e) { UI.toast('Ошибка импорта: ' + e.message, 'error'); return false; }
     });
   }
 
@@ -257,13 +338,13 @@
       case 'export-csv': exportCSV(); break;
       case 'import-json': $('importFile').click(); break;
       case 'demo':
-        return UI.confirm('Загрузить демо-данные? Текущие проекты будут заменены.', 'Загрузить').then(function (ok) {
-          if (ok) { S.loadDemo(); UI.toast('Демо-данные загружены', 'success'); }
+        return UI.confirm('Загрузить демо-проекты? Текущие проекты будут заменены, контакты не изменятся.', 'Загрузить').then(function (ok) {
+          if (ok) { S.loadDemo(); T.migrate(); UI.toast('Демо-проекты загружены', 'success'); }
           return ok;
         });
       case 'clear':
-        return UI.confirm('Удалить все проекты? Рекомендуем сначала сделать экспорт JSON.', 'Очистить всё').then(function (ok) {
-          if (ok) { S.clearAll(); UI.toast('Все данные удалены'); }
+        return UI.confirm('Удалить все проекты? Контакты останутся. Рекомендуем сначала сделать экспорт JSON.', 'Удалить проекты').then(function (ok) {
+          if (ok) { S.clearAll(); UI.toast('Все проекты удалены'); }
           return ok;
         });
     }
