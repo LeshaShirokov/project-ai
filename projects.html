@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Список ИТ-проектов: таблица и канбан, фильтры, задачи, импорт и экспорт.">
+  <meta name="color-scheme" content="light dark">
+  <title>Проекты — ИТ-проекты</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236366f1'/%3E%3Cpath d='M9 22V10h3v12zm5 0V14h3v8zm5 0v-6h3v6z' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script src="js/theme-init.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Перейти к содержимому</a>
+
+  <div class="app" id="app">
+    <aside class="sidebar" id="sidebar" aria-label="Боковая панель">
+      <div class="brand">
+        <span class="brand-logo" aria-hidden="true">
+          <svg viewBox="0 0 32 32" width="32" height="32"><rect width="32" height="32" rx="8" fill="currentColor"/><path d="M9 22V10h3v12zm5 0V14h3v8zm5 0v-6h3v6z" fill="#fff"/></svg>
+        </span>
+        <span class="brand-text">
+          <strong>ProjectBoard</strong>
+          <small>учёт ИТ-проектов</small>
+        </span>
+      </div>
+
+      <nav class="nav" aria-label="Разделы">
+        <ul>
+          <li><a href="index.html" class="nav-link"><span class="nav-ico" aria-hidden="true">◔</span>Аналитика</a></li>
+          <li><a href="projects.html" class="nav-link" aria-current="page"><span class="nav-ico" aria-hidden="true">☰</span>Проекты</a></li>
+        </ul>
+      </nav>
+
+      <section class="sidebar-section" aria-labelledby="data-title">
+        <h2 class="sidebar-title" id="data-title">Данные</h2>
+        <div class="sidebar-actions">
+          <button type="button" class="btn btn-ghost btn-block" data-action="export-json">⬇ Экспорт JSON</button>
+          <button type="button" class="btn btn-ghost btn-block" data-action="import-json">⬆ Импорт JSON</button>
+          <input type="file" id="importFile" accept="application/json,.json" hidden>
+          <button type="button" class="btn btn-ghost btn-block" data-action="export-csv">⬇ Экспорт CSV</button>
+          <button type="button" class="btn btn-ghost btn-block" data-action="demo">✦ Демо-данные</button>
+          <button type="button" class="btn btn-ghost btn-block btn-danger-text" data-action="clear">✕ Очистить всё</button>
+        </div>
+      </section>
+
+      <p class="sidebar-foot">Данные хранятся локально в браузере (localStorage) и синхронизируются между вкладками.</p>
+    </aside>
+    <div class="sidebar-backdrop" id="sidebarBackdrop" hidden></div>
+
+    <div class="content">
+      <header class="topbar">
+        <button type="button" class="icon-btn menu-btn" id="menuBtn" aria-label="Открыть меню" aria-controls="sidebar" aria-expanded="false">
+          <span aria-hidden="true">☰</span>
+        </button>
+        <div class="topbar-title">
+          <h1>Проекты</h1>
+          <p class="topbar-sub" id="todayLabel"></p>
+        </div>
+        <div class="topbar-actions">
+          <button type="button" class="icon-btn" id="themeBtn" aria-pressed="false" aria-label="Тёмная тема" title="Переключить тему">
+            <span class="theme-ico theme-ico-dark" aria-hidden="true">☾</span>
+            <span class="theme-ico theme-ico-light" aria-hidden="true">☀</span>
+          </button>
+          <button type="button" class="btn btn-primary" data-action="new-project" aria-label="Новый проект"><span aria-hidden="true">＋</span><span class="btn-label"> Новый проект</span></button>
+        </div>
+      </header>
+
+      <main id="main" tabindex="-1">
+        <section id="projects" class="section" aria-labelledby="projects-title">
+          <div class="section-head">
+            <h2 class="section-title" id="projects-title">Все проекты <span class="count" id="projectsCount"></span></h2>
+            <div class="view-toggle" role="group" aria-label="Вид отображения">
+              <button type="button" class="seg-btn" data-view="table" aria-pressed="true">▤ Таблица</button>
+              <button type="button" class="seg-btn" data-view="kanban" aria-pressed="false">▥ Канбан</button>
+            </div>
+          </div>
+
+          <form class="toolbar" id="filters" role="search" aria-label="Фильтры проектов">
+            <div class="field field-search">
+              <label for="fSearch" class="sr-only">Поиск</label>
+              <input type="search" id="fSearch" placeholder="Поиск по названию, клиенту, команде, тегам…" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="fStatus">Статус</label>
+              <select id="fStatus"><option value="">Все</option></select>
+            </div>
+            <div class="field">
+              <label for="fPriority">Приоритет</label>
+              <select id="fPriority"><option value="">Все</option></select>
+            </div>
+            <div class="field">
+              <label for="fTech">Технология</label>
+              <select id="fTech"><option value="">Все</option></select>
+            </div>
+            <div class="field">
+              <label for="fSort">Сортировка</label>
+              <select id="fSort">
+                <option value="deadline:asc">Дедлайн: ближайшие</option>
+                <option value="deadline:desc">Дедлайн: дальние</option>
+                <option value="priority:desc">Приоритет: высокий → низкий</option>
+                <option value="priority:asc">Приоритет: низкий → высокий</option>
+                <option value="progress:desc">Прогресс: больше</option>
+                <option value="progress:asc">Прогресс: меньше</option>
+                <option value="budget:desc">Бюджет: больше</option>
+                <option value="budget:asc">Бюджет: меньше</option>
+                <option value="name:asc">Название: А → Я</option>
+                <option value="name:desc">Название: Я → А</option>
+              </select>
+            </div>
+            <button type="button" class="btn btn-ghost" id="resetFilters">Сбросить</button>
+          </form>
+
+          <div id="projectsView" class="projects-view"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Модальное окно: форма проекта -->
+  <div class="modal" id="projectModal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="projectModalTitle">
+      <form id="projectForm" novalidate>
+        <header class="modal-head">
+          <h2 id="projectModalTitle">Новый проект</h2>
+          <button type="button" class="icon-btn" data-close aria-label="Закрыть">✕</button>
+        </header>
+        <div class="modal-body form-grid">
+          <div class="field span-2">
+            <label for="pName">Название <span class="req" aria-hidden="true">*</span></label>
+            <input id="pName" name="name" required maxlength="120" aria-describedby="err-name" autocomplete="off">
+            <p class="field-error" id="err-name" role="alert"></p>
+          </div>
+          <div class="field">
+            <label for="pClient">Клиент / владелец</label>
+            <input id="pClient" name="client" maxlength="120" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="pTeam">Команда <small>(через запятую)</small></label>
+            <input id="pTeam" name="team" autocomplete="off" placeholder="Анна, Игорь">
+          </div>
+          <div class="field span-2">
+            <label for="pDesc">Описание</label>
+            <textarea id="pDesc" name="description" rows="3" maxlength="2000"></textarea>
+          </div>
+          <div class="field">
+            <label for="pStatus">Статус</label>
+            <select id="pStatus" name="status" aria-describedby="err-status"></select>
+            <p class="field-error" id="err-status" role="alert"></p>
+          </div>
+          <div class="field">
+            <label for="pPriority">Приоритет</label>
+            <select id="pPriority" name="priority" aria-describedby="err-priority"></select>
+            <p class="field-error" id="err-priority" role="alert"></p>
+          </div>
+          <div class="field span-2">
+            <label for="pStack">Технологический стек <small>(через запятую)</small></label>
+            <input id="pStack" name="stack" autocomplete="off" placeholder="TypeScript, React, PostgreSQL" list="techList">
+            <datalist id="techList"></datalist>
+          </div>
+          <div class="field">
+            <label for="pStart">Дата начала</label>
+            <input id="pStart" name="start" type="date" aria-describedby="err-start">
+            <p class="field-error" id="err-start" role="alert"></p>
+          </div>
+          <div class="field">
+            <label for="pDeadline">Дедлайн</label>
+            <input id="pDeadline" name="deadline" type="date" aria-describedby="err-deadline">
+            <p class="field-error" id="err-deadline" role="alert"></p>
+          </div>
+          <div class="field">
+            <label for="pBudget">Бюджет, ₽</label>
+            <input id="pBudget" name="budget" type="number" min="0" step="1000" inputmode="numeric" aria-describedby="err-budget">
+            <p class="field-error" id="err-budget" role="alert"></p>
+          </div>
+          <div class="field">
+            <label for="pSpent">Потрачено, ₽</label>
+            <input id="pSpent" name="spent" type="number" min="0" step="1000" inputmode="numeric" aria-describedby="err-spent">
+            <p class="field-error" id="err-spent" role="alert"></p>
+          </div>
+          <div class="field span-2">
+            <label for="pProgress">Прогресс: <output id="pProgressOut" for="pProgress">0%</output></label>
+            <input id="pProgress" name="progress" type="range" min="0" max="100" step="1" value="0" aria-describedby="err-progress">
+            <p class="field-error" id="err-progress" role="alert"></p>
+            <label class="check">
+              <input type="checkbox" id="pAuto" name="autoProgress">
+              <span>Считать прогресс по задачам</span>
+            </label>
+          </div>
+          <div class="field span-2">
+            <label for="pRepo">Репозиторий (URL)</label>
+            <input id="pRepo" name="repo" type="url" inputmode="url" placeholder="https://github.com/org/repo" aria-describedby="err-repo" autocomplete="off">
+            <p class="field-error" id="err-repo" role="alert"></p>
+          </div>
+          <div class="field span-2">
+            <label for="pTags">Теги <small>(через запятую)</small></label>
+            <input id="pTags" name="tags" autocomplete="off" placeholder="b2b, mobile">
+          </div>
+        </div>
+        <footer class="modal-foot">
+          <button type="button" class="btn btn-ghost" data-close>Отмена</button>
+          <button type="submit" class="btn btn-primary">Сохранить</button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
+  <!-- Модальное окно: карточка проекта -->
+  <div class="modal" id="detailsModal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-dialog modal-wide" role="dialog" aria-modal="true" aria-labelledby="detailsTitle">
+      <header class="modal-head">
+        <h2 id="detailsTitle">Проект</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Закрыть">✕</button>
+      </header>
+      <div class="modal-body" id="detailsBody"></div>
+      <footer class="modal-foot">
+        <button type="button" class="btn btn-danger" id="detailsDelete">Удалить</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-ghost" data-close>Закрыть</button>
+        <button type="button" class="btn btn-primary" id="detailsEdit">Изменить</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Модальное окно: подтверждение -->
+  <div class="modal" id="confirmModal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-dialog modal-small" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmText">
+      <header class="modal-head">
+        <h2 id="confirmTitle">Подтвердите действие</h2>
+      </header>
+      <div class="modal-body"><p id="confirmText"></p></div>
+      <footer class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-close id="confirmCancel">Отмена</button>
+        <button type="button" class="btn btn-danger" id="confirmOk">Подтвердить</button>
+      </footer>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts" role="status" aria-live="polite" aria-atomic="false"></div>
+
+  <script src="js/utils.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/shell.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/projects.js"></script>
+</body>
+</html>

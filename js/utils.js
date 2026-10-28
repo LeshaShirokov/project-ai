@@ -55,13 +55,6 @@
 
   function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); return node; }
 
-  /** HTML-экранирование (на случай генерации строк — в интерфейсе не используется вместе с innerHTML). */
-  function escapeHtml(str) {
-    return String(str == null ? '' : str).replace(/[&<>"']/g, function (ch) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
-    });
-  }
-
   var moneyFmt = null;
   function money(n) {
     n = Number(n) || 0;
@@ -164,7 +157,7 @@
   }
 
   PD.utils = {
-    h: h, s: s, append: append, clear: clear, escapeHtml: escapeHtml,
+    h: h, s: s, clear: clear,
     money: money, moneyShort: moneyShort,
     parseDate: parseDate, isValidDate: isValidDate, toISODate: toISODate, today: today, addDays: addDays,
     daysUntil: daysUntil, formatDate: formatDate, daysLabel: daysLabel, plural: plural,

@@ -94,7 +94,7 @@ a { color: var(--primary); }
   color: var(--text-soft); text-decoration: none; font-weight: 500;
 }
 .nav-link:hover { background: var(--bg-soft); color: var(--text); }
-.nav-link[aria-current="true"] { background: var(--primary-soft); color: var(--primary); }
+.nav-link[aria-current="page"] { background: var(--primary-soft); color: var(--primary); }
 .nav-ico { width: 18px; text-align: center; }
 .sidebar-title { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 0 8px; margin-bottom: 8px; }
 .sidebar-actions { display: grid; gap: 4px; }
@@ -131,6 +131,8 @@ main { padding: 24px 28px 48px; display: grid; grid-template-columns: minmax(0, 
   transition: background-color .15s, border-color .15s, transform .05s, color .15s;
 }
 .btn:active { transform: translateY(1px); }
+a.btn, a.link-btn { text-decoration: none; }
+a.link-btn:hover { text-decoration: underline; }
 .btn.sm { padding: 6px 12px; font-size: 13px; }
 .btn-block { width: 100%; justify-content: flex-start; }
 .btn-primary { background: var(--primary); color: var(--primary-contrast); }
@@ -305,7 +307,7 @@ textarea { resize: vertical; min-height: 72px; }
 .deadline-item:nth-child(odd) { background: var(--bg-soft); }
 .deadline-item.is-overdue { background: var(--danger-soft); }
 .deadline-item.is-overdue .deadline-name { color: var(--danger); }
-.deadline-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.deadline-name { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .deadline-date { color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* ----- Modals ----- */

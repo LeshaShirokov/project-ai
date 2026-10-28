@@ -97,8 +97,8 @@
     container.appendChild(svg);
   }
 
-  /** Ближайшие дедлайны (с подсветкой просроченных). */
-  function deadlines(container, projects, onOpen) {
+  /** Ближайшие дедлайны (с подсветкой просроченных). hrefFor(p) — ссылка на проект. */
+  function deadlines(container, projects, hrefFor) {
     U.clear(container);
     var list = projects.filter(function (p) { return p.deadline && p.status !== 'done' && p.status !== 'cancelled'; })
       .sort(function (a, b) { return a.deadline < b.deadline ? -1 : a.deadline > b.deadline ? 1 : 0; }).slice(0, 8);
@@ -107,7 +107,7 @@
       var d = U.daysUntil(p.deadline);
       var cls = d < 0 ? 'is-overdue' : d <= 7 ? 'is-soon' : '';
       return h('li', { class: 'deadline-item ' + cls }, [
-        h('button', { type: 'button', class: 'link-btn deadline-name', onclick: function () { onOpen && onOpen(p.id); } }, p.name),
+        h('a', { class: 'link-btn deadline-name', href: hrefFor(p), title: 'Открыть проект' }, p.name),
         h('span', { class: 'deadline-date' }, U.formatDate(p.deadline)),
         h('span', { class: 'deadline-left badge ' + (d < 0 ? 'badge-danger' : d <= 7 ? 'badge-warn' : 'badge-muted') }, U.daysLabel(d))
       ]);

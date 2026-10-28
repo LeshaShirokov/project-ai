@@ -1,11 +1,10 @@
-/* Точка входа: состояние фильтров, связка хранилища и интерфейса */
+/* Страница «Проекты»: состояние фильтров, форма проекта, карточка, импорт/экспорт */
 (function (global) {
   'use strict';
   var PD = global.PD = global.PD || {};
-  var U = PD.utils, S = PD.store, UI = PD.ui, C = PD.charts;
+  var U = PD.utils, S = PD.store, UI = PD.ui, V = PD.views, SH = PD.shell;
   var h = U.h;
 
-  var THEME_KEY = 'itpd.theme';
   var VIEW_KEY = 'itpd.view';
 
   var state = {
@@ -17,8 +16,7 @@
   };
 
   function $(id) { return document.getElementById(id); }
-  function lsGet(k) { try { return global.localStorage.getItem(k); } catch (e) { return null; } }
-  function lsSet(k, v) { try { global.localStorage.setItem(k, v); } catch (e) { /* noop */ } }
+  var lsGet = SH.lsGet, lsSet = SH.lsSet;
 
   /* ---------- Фильтрация и сортировка ---------- */
   function filtered() {
@@ -77,17 +75,12 @@
 
   function render() {
     var focusKey = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.focusKey : null;
-    UI.renderKPIs($('kpis'), S.stats());
     fillFilterOptions();
     var list = filtered();
     var total = S.all().length;
     $('projectsCount').textContent = list.length === total ? String(total) : list.length + ' из ' + total;
-    if (state.view === 'kanban') UI.renderKanban($('projectsView'), list, handlers);
-    else UI.renderTable($('projectsView'), list, handlers);
-    C.donut($('chartStatus'), list);
-    C.budgetBars($('chartBudget'), list);
-    C.techBars($('chartTech'), list);
-    C.deadlines($('chartDeadlines'), list, openDetails);
+    if (state.view === 'kanban') V.renderKanban($('projectsView'), list, handlers);
+    else V.renderTable($('projectsView'), list, handlers);
     if (state.detailsId) {
       var p = S.get(state.detailsId);
       if (p) renderDetails(p); else UI.closeModal($('detailsModal'));
@@ -225,7 +218,7 @@
   };
   function renderDetails(p) {
     $('detailsTitle').textContent = p.name;
-    UI.renderDetails($('detailsBody'), p, detailHandlers);
+    V.renderDetails($('detailsBody'), p, detailHandlers);
   }
   function openDetails(id) {
     var p = S.get(id);
@@ -277,36 +270,24 @@
     return Promise.resolve();
   }
 
-  /* ---------- Тема ---------- */
-  function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    var btn = $('themeBtn');
-    btn.setAttribute('aria-pressed', String(theme === 'dark'));
-    btn.setAttribute('aria-label', theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему');
+  /* ---------- Переход по ссылке: #new или #project=<id> ---------- */
+  function clearHash() {
+    try { global.history.replaceState(null, '', global.location.pathname + global.location.search); } catch (e) { /* noop */ }
   }
-  function toggleTheme() {
-    var next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    lsSet(THEME_KEY, next);
-    applyTheme(next);
-  }
-
-  /* ---------- Боковое меню (мобильные) ---------- */
-  function setMenu(open) {
-    $('sidebar').classList.toggle('is-open', open);
-    $('sidebarBackdrop').hidden = !open;
-    $('menuBtn').setAttribute('aria-expanded', String(open));
-    $('menuBtn').setAttribute('aria-label', open ? 'Закрыть меню' : 'Открыть меню');
+  function handleHash() {
+    var hash = global.location.hash || '';
+    if (hash === '#new') { clearHash(); openForm(null, $('main')); return; }
+    var m = /^#project=(.+)$/.exec(hash);
+    if (!m) return;
+    var id; try { id = decodeURIComponent(m[1]); } catch (e) { id = ''; }
+    clearHash();
+    if (S.get(id)) openDetails(id);
+    else UI.toast('Проект не найден', 'error');
   }
 
   /* ---------- Инициализация ---------- */
   function init() {
-    UI.initModals();
     initForm();
-    applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
-
-    var today = U.today();
-    try { $('todayLabel').textContent = 'Сегодня: ' + today.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); }
-    catch (e) { $('todayLabel').textContent = 'Сегодня: ' + U.formatDate(U.toISODate(today)); }
 
     state.view = lsGet(VIEW_KEY) === 'kanban' ? 'kanban' : 'table';
     document.querySelectorAll('[data-view]').forEach(function (b) {
@@ -314,9 +295,8 @@
       b.addEventListener('click', function () { setView(b.dataset.view); });
     });
 
-    $('themeBtn').addEventListener('click', toggleTheme);
     document.querySelectorAll('[data-action]').forEach(function (b) {
-      b.addEventListener('click', function (e) { setMenu(false); onAction(b.dataset.action, e.currentTarget); });
+      b.addEventListener('click', function (e) { onAction(b.dataset.action, e.currentTarget); });
     });
     $('importFile').addEventListener('change', function (e) {
       var file = e.target.files && e.target.files[0];
@@ -346,36 +326,18 @@
     });
     $('detailsDelete').addEventListener('click', function () { if (state.detailsId) deleteProject(state.detailsId); });
 
-    $('menuBtn').addEventListener('click', function () { setMenu(!$('sidebar').classList.contains('is-open')); });
-    $('sidebarBackdrop').addEventListener('click', function () { setMenu(false); });
-    document.querySelectorAll('.nav-link').forEach(function (a) {
-      a.addEventListener('click', function () {
-        document.querySelectorAll('.nav-link').forEach(function (x) { x.removeAttribute('aria-current'); });
-        a.setAttribute('aria-current', 'true');
-        setMenu(false);
-      });
+    SH.init({
+      render: render,
+      onStorage: function (e) { if (e.key === VIEW_KEY && e.newValue) setView(e.newValue); }
     });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && $('sidebar').classList.contains('is-open')) setMenu(false); });
-
-    // Синхронизация между вкладками
-    global.addEventListener('storage', function (e) {
-      if (e.key === S.STORAGE_KEY || e.key === null) { S.reload(); }
-      else if (e.key === THEME_KEY && (e.newValue === 'dark' || e.newValue === 'light')) applyTheme(e.newValue);
-      else if (e.key === VIEW_KEY && e.newValue) { state.view = e.newValue === 'kanban' ? 'kanban' : 'table'; setView(state.view); }
-    });
-
-    S.subscribe(function (reason) {
-      render();
-      if (reason === 'sync') UI.toast('Данные обновлены в другой вкладке');
-    });
-    S.load();
-    if (!S.storageOk()) UI.toast('localStorage недоступен — данные не сохранятся', 'error');
+    handleHash();
+    global.addEventListener('hashchange', handleHash);
   }
 
   PD.app = {
     state: state, filtered: filtered, render: render, setView: setView, openForm: openForm, submitForm: submitForm,
     openDetails: openDetails, deleteProject: deleteProject, changeStatus: changeStatus, importText: importText, onAction: onAction,
-    toggleTheme: toggleTheme, resetFilters: resetFilters
+    resetFilters: resetFilters, handleHash: handleHash
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
