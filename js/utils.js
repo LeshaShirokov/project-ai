@@ -156,7 +156,42 @@
     setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 0);
   }
 
+  /* Поле type=date, которое сохраняет значение «по готовности».
+     Chrome шлёт change после каждого заполненного сегмента (мм → дд → гггг), а сохранение
+     перерисовывает карточку и пересоздаёт поле — набор даты с клавиатуры обрывался на полуслове
+     (12312027 превращалось в 0002-12-31 / 2026-02-28 и терялся фокус).
+     Теперь: выбор в календарике (без клавиатуры) сохраняется сразу, а при наборе с клавиатуры —
+     по Enter или при уходе с поля. */
+  function onDateCommit(input, commit) {
+    var typing = false, last = input.value;
+    function fire() {
+      typing = false;
+      // Дата набрана не до конца (например, только месяц) — value пустое, но это не «срок убран»
+      if (input.validity && input.validity.badInput) return;
+      if (input.value === last) return;
+      last = input.value;
+      commit(input.value);
+    }
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { if (typing || input.value !== last) { e.preventDefault(); fire(); } return; }
+      if (e.key === 'Tab' || e.key === 'Escape' || e.key === 'Shift') return;
+      typing = true;
+    });
+    // activeElement на change ненадёжен (Chrome в момент перехода к следующему сегменту), поэтому смотрим только на флаг
+    input.addEventListener('change', function () { if (!typing) fire(); });
+    // setTimeout: фокус успевает перейти на следующий элемент, и перерисовка вернёт его туда же
+    input.addEventListener('blur', function () {
+      setTimeout(function () {
+        if (!input.isConnected) return;
+        if (input.validity && input.validity.badInput) { input.value = last; typing = false; return; } // недонабранная дата — откатываем
+        if (input.value !== last) fire(); else typing = false;
+      }, 0);
+    });
+    return input;
+  }
+
   PD.utils = {
+    onDateCommit: onDateCommit,
     h: h, s: s, clear: clear,
     money: money, moneyShort: moneyShort,
     parseDate: parseDate, isValidDate: isValidDate, toISODate: toISODate, today: today, addDays: addDays,

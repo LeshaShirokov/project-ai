@@ -82,7 +82,14 @@
     $('projectsCount').textContent = list.length === total ? String(total) : list.length + ' из ' + total;
     if (state.view === 'kanban') V.renderKanban($('projectsView'), list, handlers);
     else V.renderTable($('projectsView'), list, handlers);
-    if (!$('projectModal').hidden) renderTeamPicker(selectedTeamIds().concat(state.unknownTeamIds));
+    if (!$('projectModal').hidden) {
+      if (state.editingId && !S.get(state.editingId)) {
+        // Проект удалили в другой вкладке, пока здесь была открыта форма: сохранять больше нечего
+        state.returnToDetails = null;
+        UI.closeModal($('projectModal'), 'gone');
+        UI.toast('Проект удалён в другой вкладке — изменения не сохранены', 'error');
+      } else renderTeamPicker(selectedTeamIds().concat(state.unknownTeamIds));
+    }
     if (state.detailsId) {
       var p = S.get(state.detailsId);
       if (p) renderDetails(p); else UI.closeModal($('detailsModal'));
@@ -121,6 +128,8 @@
       if (!ok) return false;
       if (state.detailsId === id) UI.closeModal($('detailsModal'));
       S.remove(id);
+      // Строка удалённого проекта исчезла вместе с фокусом — переносим его на основную область
+      if (!document.activeElement || document.activeElement === document.body) { var m = $('main'); if (m) m.focus(); }
       UI.toast('Проект удалён');
       return true;
     });
@@ -218,6 +227,7 @@
 
   function openForm(id, trigger) {
     var p = id ? S.get(id) : null;
+    state.returnToDetails = null;
     state.editingId = p ? p.id : null;
     $('projectModalTitle').textContent = p ? 'Редактирование проекта' : 'Новый проект';
     form.reset();
@@ -243,7 +253,12 @@
     fields.repo.value = d.repo || '';
     fields.tags.value = (d.tags || []).join(', ');
     syncProgressOut(); syncAuto();
-    UI.openModal($('projectModal'), { returnFocus: trigger || document.activeElement, initialFocus: fields.name, onClose: function () { state.editingId = null; } });
+    UI.openModal($('projectModal'), { returnFocus: trigger || document.activeElement, initialFocus: fields.name, onClose: function () {
+      state.editingId = null;
+      // Форма открыта из карточки проекта — после «Сохранить» / «Отмена» / Esc возвращаемся в карточку (уже со свежими данными)
+      var back = state.returnToDetails; state.returnToDetails = null;
+      if (back && S.get(back.id)) setTimeout(function () { openDetails(back.id, back.returnFocus, $('detailsEdit')); }, 0);
+    } });
   }
 
   function readForm() {
@@ -266,6 +281,12 @@
     Object.keys(fields).forEach(function (k) { setError(k, errors[k]); });
     var keys = Object.keys(errors);
     if (keys.length) { if (fields[keys[0]]) fields[keys[0]].focus(); return false; }
+    if (state.editingId && !S.get(state.editingId)) {
+      UI.toast('Проект уже удалён — изменения не сохранены', 'error');
+      state.returnToDetails = null;
+      UI.closeModal($('projectModal'), 'gone');
+      return false;
+    }
     try {
       if (state.editingId) { S.update(state.editingId, data); UI.toast('Изменения сохранены', 'success'); }
       else { S.create(data); UI.toast('Проект создан', 'success'); }
@@ -279,22 +300,30 @@
 
   /* ---------- Карточка проекта ---------- */
   var detailHandlers = {
-    addTask: function (id, text, due) { S.addTask(id, text, due); var i = $('taskInput'); if (i) i.focus(); },
+    addTask: function (id, text, due) { state.taskDraft = null; S.addTask(id, text, due); var i = $('taskInput'); if (i) { i.value = ''; i.focus(); } var d = $('taskDueInput'); if (d) d.value = ''; },
     setTaskDue: function (id, tid, due) { S.setTaskDue(id, tid, due); },
     toggleTask: function (id, tid, done) { S.toggleTask(id, tid, done); },
     removeTask: function (id, tid) { S.removeTask(id, tid); var i = $('taskInput'); if (i) i.focus(); },
     setAuto: function (id, on) { S.setAutoProgress(id, on); var c = $('detailsAuto'); if (c) c.focus(); }
   };
-  function renderDetails(p) {
+  function renderDetails(p, fresh) {
+    // Перерисовка карточки (своё действие или изменения из другой вкладки) не должна стирать
+    // недописанную новую задачу и её срок
+    var oldText = $('taskInput'), oldDue = $('taskDueInput');
+    var draft = !fresh && oldText ? { text: oldText.value, due: oldDue ? oldDue.value : '' } : null;
     $('detailsTitle').textContent = p.name;
+    $('detailsTitle').title = p.name;
     V.renderDetails($('detailsBody'), p, detailHandlers);
+    if (draft) { $('taskInput').value = draft.text; if ($('taskDueInput')) $('taskDueInput').value = draft.due; }
   }
-  function openDetails(id) {
+  function openDetails(id, returnFocus, initialFocus) {
     var p = S.get(id);
     if (!p) return;
+    if (!$('projectModal').hidden) { state.returnToDetails = null; UI.closeModal($('projectModal'), 'replace'); }
     state.detailsId = id;
-    renderDetails(p);
-    UI.openModal($('detailsModal'), { onClose: function () { state.detailsId = null; } });
+    state.detailsReturn = returnFocus || document.activeElement;
+    renderDetails(p, true);
+    UI.openModal($('detailsModal'), { returnFocus: state.detailsReturn, initialFocus: initialFocus, onClose: function () { state.detailsId = null; } });
   }
 
   /* ---------- Данные ---------- */
@@ -358,7 +387,13 @@
   }
   function handleHash() {
     var hash = global.location.hash || '';
-    if (hash === '#new') { clearHash(); openForm(null, $('main')); return; }
+    if (hash === '#new') {
+      clearHash();
+      if (state.detailsId) UI.closeModal($('detailsModal'), 'replace');
+      state.returnToDetails = null;
+      openForm(null, $('main'));
+      return;
+    }
     var m = /^#project=(.+)$/.exec(hash);
     if (!m) return;
     var id; try { id = decodeURIComponent(m[1]); } catch (e) { id = ''; }
@@ -402,9 +437,11 @@
     $('resetFilters').addEventListener('click', resetFilters);
 
     $('detailsEdit').addEventListener('click', function () {
-      var id = state.detailsId;
-      UI.closeModal($('detailsModal'));
-      if (id) openForm(id);
+      var id = state.detailsId, back = state.detailsReturn;
+      if (!id) return;
+      UI.closeModal($('detailsModal'), 'edit');
+      openForm(id, back);
+      state.returnToDetails = { id: id, returnFocus: back };
     });
     $('detailsDelete').addEventListener('click', function () { if (state.detailsId) deleteProject(state.detailsId); });
 

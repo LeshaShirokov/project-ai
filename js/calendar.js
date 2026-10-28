@@ -440,12 +440,12 @@
         ]),
         h('label', { class: 'cal-item-due' }, [
           h('span', null, 'Срок'),
-          h('input', { type: 'date', id: 'itemDue', value: t.due || '', dataset: { focusKey: 'item-due' }, onchange: function (e) {
-            var v = e.target.value;
+          // Сохраняем срок только после завершения ввода (Enter / уход с поля / выбор в пикере), а не на каждый сегмент
+          U.onDateCommit(h('input', { type: 'date', id: 'itemDue', value: t.due || '', dataset: { focusKey: 'item-due' } }), function (v) {
             S.setTaskDue(p.id, t.id, v);
             if (v) { UI.toast('Срок изменён: ' + U.formatDate(v)); }
             else UI.toast('Срок убран — задача больше не в календаре');
-          } })
+          })
         ])
       ]));
     } else if (item.kind === 'deadline') {

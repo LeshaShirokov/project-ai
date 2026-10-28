@@ -26,7 +26,7 @@
         var doneTasks = p.tasks.filter(function (t) { return t.done; }).length;
         return h('tr', { class: overdue ? 'is-overdue' : '', dataset: { id: p.id } }, [
           h('td', { 'data-label': 'Проект', class: 'cell-name' }, [
-            h('button', { type: 'button', class: 'link-btn project-name', onclick: function () { handlers.open(p.id); } }, p.name),
+            h('button', { type: 'button', class: 'link-btn project-name', dataset: { focusKey: 'open-' + p.id }, onclick: function () { handlers.open(p.id); } }, p.name),
             p.client ? h('small', { class: 'muted block' }, p.client) : null,
             p.tasks.length ? h('small', { class: 'muted block' }, 'Задачи: ' + doneTasks + '/' + p.tasks.length) : null
           ]),
@@ -41,7 +41,7 @@
           ]),
           h('td', { 'data-label': 'Прогресс', class: 'cell-progress' }, [progressBar(p.progress, 'Прогресс «' + p.name + '»'), h('small', null, p.progress + '%')]),
           h('td', { 'data-label': 'Действия', class: 'cell-actions' }, [
-            h('button', { type: 'button', class: 'icon-btn sm', 'aria-label': 'Изменить «' + p.name + '»', title: 'Изменить', dataset: { act: 'edit' }, onclick: function (e) { handlers.edit(p.id, e.currentTarget); } }, '✎'),
+            h('button', { type: 'button', class: 'icon-btn sm', 'aria-label': 'Изменить «' + p.name + '»', title: 'Изменить', dataset: { act: 'edit', focusKey: 'edit-' + p.id }, onclick: function (e) { handlers.edit(p.id, e.currentTarget); } }, '✎'),
             h('button', { type: 'button', class: 'icon-btn sm danger', 'aria-label': 'Удалить «' + p.name + '»', title: 'Удалить', dataset: { act: 'delete' }, onclick: function () { handlers.remove(p.id); } }, '🗑')
           ])
         ]);
@@ -96,7 +96,7 @@
     var overdue = S.isOverdue(p);
     var card = h('li', { class: 'kanban-card card' + (overdue ? ' is-overdue' : ''), draggable: 'true', dataset: { id: p.id } }, [
       h('div', { class: 'kc-top' }, [priorityBadge(p.priority), overdue ? h('span', { class: 'badge badge-danger' }, 'просрочен') : null]),
-      h('button', { type: 'button', class: 'link-btn kc-title', onclick: function () { handlers.open(p.id); } }, p.name),
+      h('button', { type: 'button', class: 'link-btn kc-title', dataset: { focusKey: 'kopen-' + p.id }, onclick: function () { handlers.open(p.id); } }, p.name),
       p.client ? h('p', { class: 'kc-client muted' }, p.client) : null,
       p.stack.length ? chips(p.stack.slice(0, 4)) : null,
       h('div', { class: 'kc-progress' }, [progressBar(p.progress, 'Прогресс «' + p.name + '»'), h('small', null, p.progress + '%')]),
@@ -104,7 +104,7 @@
       h('div', { class: 'kc-meta' }, [deadlineCell(p), p.tasks.length ? h('small', { class: 'muted' }, '☑ ' + p.tasks.filter(function (t) { return t.done; }).length + '/' + p.tasks.length) : null]),
       h('div', { class: 'kc-foot' }, [
         statusSelect(p, handlers.setStatus),
-        h('button', { type: 'button', class: 'icon-btn sm', 'aria-label': 'Изменить «' + p.name + '»', onclick: function (e) { handlers.edit(p.id, e.currentTarget); } }, '✎')
+        h('button', { type: 'button', class: 'icon-btn sm', dataset: { focusKey: 'kedit-' + p.id }, 'aria-label': 'Изменить «' + p.name + '»', onclick: function (e) { handlers.edit(p.id, e.currentTarget); } }, '✎')
       ])
     ]);
     card.addEventListener('dragstart', function (e) {
@@ -142,20 +142,20 @@
       progressBar(p.progress, 'Прогресс проекта')
     ]));
 
-    var input = h('input', { type: 'text', id: 'taskInput', maxlength: '200', placeholder: 'Новая задача…', 'aria-label': 'Текст новой задачи', autocomplete: 'off' });
-    var dueInput = h('input', { type: 'date', id: 'taskDueInput', class: 'task-due-input', 'aria-label': 'Срок закрытия новой задачи (необязательно)', title: 'Срок закрытия (необязательно)' });
+    var input = h('input', { type: 'text', id: 'taskInput', dataset: { focusKey: 'task-new' }, maxlength: '200', placeholder: 'Новая задача…', 'aria-label': 'Текст новой задачи', autocomplete: 'off' });
+    var dueInput = h('input', { type: 'date', id: 'taskDueInput', dataset: { focusKey: 'task-new-due' }, class: 'task-due-input', 'aria-label': 'Срок закрытия новой задачи (необязательно)', title: 'Срок закрытия (необязательно)' });
     var form = h('form', { class: 'task-add', onsubmit: function (e) {
       e.preventDefault();
       var v = input.value.trim();
       if (!v) { input.focus(); return; }
       handlers.addTask(p.id, v, dueInput.value);
-    } }, [input, dueInput, h('button', { type: 'submit', class: 'btn btn-primary sm' }, 'Добавить')]);
+    } }, [input, dueInput, h('button', { type: 'submit', class: 'btn btn-primary sm', dataset: { focusKey: 'task-add' } }, 'Добавить')]);
 
     root.appendChild(h('section', { class: 'tasks', 'aria-labelledby': 'tasksTitle' }, [
       h('div', { class: 'row-between' }, [
         h('h3', { id: 'tasksTitle' }, 'Задачи ' + (p.tasks.length ? doneCount + '/' + p.tasks.length : '')),
         h('label', { class: 'check' }, [
-          h('input', { type: 'checkbox', id: 'detailsAuto', checked: p.autoProgress, onchange: function (e) { handlers.setAuto(p.id, e.target.checked); } }),
+          h('input', { type: 'checkbox', id: 'detailsAuto', dataset: { focusKey: 'details-auto' }, checked: p.autoProgress, onchange: function (e) { handlers.setAuto(p.id, e.target.checked); } }),
           h('span', null, 'Считать прогресс по задачам')
         ])
       ]),
@@ -165,9 +165,9 @@
           h('input', { type: 'checkbox', id: cbId, checked: t.done, dataset: { focusKey: 'task-' + t.id }, onchange: function (e) { handlers.toggleTask(p.id, t.id, e.target.checked); } }),
           h('label', { for: cbId }, t.text),
           taskDueBadge(t),
-          h('input', { type: 'date', class: 'task-due-input', value: t.due || '', 'aria-label': 'Срок закрытия задачи «' + t.text + '»', title: 'Срок закрытия', dataset: { focusKey: 'due-' + t.id },
-            onchange: function (e) { handlers.setTaskDue(p.id, t.id, e.target.value); } }),
-          h('button', { type: 'button', class: 'icon-btn sm danger', 'aria-label': 'Удалить задачу «' + t.text + '»', onclick: function () { handlers.removeTask(p.id, t.id); } }, '✕')
+          U.onDateCommit(h('input', { type: 'date', class: 'task-due-input', value: t.due || '', 'aria-label': 'Срок закрытия задачи «' + t.text + '»', title: 'Срок закрытия', dataset: { focusKey: 'due-' + t.id } }),
+            function (v) { handlers.setTaskDue(p.id, t.id, v); }),
+          h('button', { type: 'button', class: 'icon-btn sm danger', dataset: { focusKey: 'del-' + t.id }, 'aria-label': 'Удалить задачу «' + t.text + '»', onclick: function () { handlers.removeTask(p.id, t.id); } }, '✕')
         ]);
       })) : h('p', { class: 'muted' }, 'Задач пока нет.'),
       p.tasks.some(function (t) { return t.due; }) ? h('p', { class: 'hint' }, ['Задачи со сроком видны в ', h('a', { href: 'calendar.html#view=month&date=' + encodeURIComponent(U.toISODate(U.today())) }, 'календаре'), '.']) : null,

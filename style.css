@@ -77,7 +77,8 @@ a { color: var(--primary); }
 .row-between { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 
 /* ----- Layout ----- */
-.app { display: flex; min-height: 100vh; }
+/* overflow-x: clip — страница никогда не шире экрана: иначе на телефоне растягивается layout viewport, и fixed-модалки уезжают за край. clip (не hidden) не ломает position: sticky */
+.app { display: flex; min-height: 100vh; overflow-x: clip; }
 .sidebar {
   position: sticky; top: 0; height: 100vh; width: var(--sidebar-w); flex: 0 0 var(--sidebar-w);
   background: var(--sidebar); border-right: 1px solid var(--border);
@@ -190,8 +191,10 @@ a.link-btn:hover { text-decoration: underline; }
 .prio-high { background: var(--warn-soft); color: var(--warn); }
 .prio-critical { background: var(--danger-soft); color: var(--danger); }
 [data-theme="dark"] .prio-medium { color: #7dd3fc; }
-.chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
-.chip { padding: 1px 8px; border-radius: 6px; font-size: 12px; background: var(--primary-soft); color: var(--primary); white-space: nowrap; }
+.chips { display: inline-flex; flex-wrap: wrap; gap: 4px; min-width: 0; max-width: 100%; }
+/* Длинный тег/технология без пробелов переносится, а не растягивает строку, карточку или модальное окно */
+.chip { padding: 1px 8px; border-radius: 6px; font-size: 12px; background: var(--primary-soft); color: var(--primary); white-space: nowrap; max-width: 100%; }
+.chip { white-space: normal; overflow-wrap: anywhere; }
 .chip-tag { background: var(--bg-soft); color: var(--text-soft); }
 .chip-tag::before { content: "#"; opacity: .6; }
 
@@ -214,7 +217,8 @@ textarea { resize: vertical; min-height: 72px; }
 .seg-btn[aria-pressed="true"] { background: var(--bg-elev); color: var(--text); box-shadow: var(--shadow); }
 
 /* ----- Table ----- */
-.table-wrap { overflow-x: auto; }
+/* position: relative — чтобы .sr-only внутри таблицы не «вылезали» за прокручиваемый контейнер и не расширяли страницу */
+.table-wrap { overflow-x: auto; position: relative; }
 .table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .table th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; padding: 12px 10px; border-bottom: 1px solid var(--border); background: var(--bg-soft); white-space: nowrap; }
 .table th:first-child { border-top-left-radius: var(--radius); }
@@ -225,6 +229,7 @@ textarea { resize: vertical; min-height: 72px; }
 .table tbody tr:hover { background: color-mix(in srgb, var(--primary-soft) 45%, transparent); }
 .table tr.is-overdue td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
 .cell-name { min-width: 170px; }
+.cell-name, .project-name { overflow-wrap: anywhere; }
 .cell-progress { min-width: 100px; }
 .cell-progress small { color: var(--muted); }
 .cell-money { white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -239,7 +244,7 @@ textarea { resize: vertical; min-height: 72px; }
 .empty-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
 
 /* ----- Kanban ----- */
-.kanban { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 1fr); gap: 14px; overflow-x: auto; padding-bottom: 8px; }
+.kanban { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 1fr); gap: 14px; overflow-x: auto; position: relative; padding-bottom: 8px; }
 .kanban-col { background: var(--bg-soft); border: 1px dashed transparent; border-radius: var(--radius); padding: 10px; display: flex; flex-direction: column; gap: 10px; min-height: 220px; transition: border-color .15s, background-color .15s; }
 .kanban-col.is-over { border-color: var(--primary); background: var(--primary-soft); }
 .kanban-head { display: flex; align-items: center; gap: 8px; padding: 2px 4px; }
@@ -310,20 +315,25 @@ textarea { resize: vertical; min-height: 72px; }
 .deadline-date { color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* ----- Modals ----- */
-.modal { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 20px; }
+.modal { position: fixed; inset: 0; z-index: 60; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); place-items: center; padding: 20px; overscroll-behavior: contain; }
 .modal-backdrop { position: absolute; inset: 0; background: rgba(2, 6, 23, .55); backdrop-filter: blur(2px); animation: fade .15s ease; }
 .modal-dialog {
-  position: relative; width: min(680px, 100%); max-height: calc(100vh - 40px); display: flex; flex-direction: column;
+  position: relative; width: min(680px, 100%); max-width: 100%; min-width: 0; min-height: 0;
+  max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); display: flex; flex-direction: column;
+  overflow: hidden; overflow-wrap: anywhere;
   background: var(--bg-elev); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow-lg);
   animation: pop .18s ease;
 }
 .modal-dialog > form { display: flex; flex-direction: column; min-height: 0; flex: 1; }
 .modal-wide { width: min(760px, 100%); }
 .modal-small { width: min(440px, 100%); }
-.modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 22px; border-bottom: 1px solid var(--border); }
-.modal-head h2 { font-size: 18px; overflow-wrap: anywhere; }
-.modal-body { padding: 18px 22px; overflow-y: auto; }
-.modal-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 14px 22px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.modal-head { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 22px; border-bottom: 1px solid var(--border); }
+.modal-head > * { min-width: 0; }
+.modal-head .icon-btn, .modal-head [data-close] { flex: 0 0 auto; }
+/* Очень длинное название не съедает всю высоту окна: максимум 3 строки, полный текст — в title и в теле карточки */
+.modal-head h2 { font-size: 18px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.modal-body { flex: 1 1 auto; min-height: 0; padding: 18px 22px; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
+.modal-foot { flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 14px 22px; border-top: 1px solid var(--border); flex-wrap: wrap; }
 @keyframes fade { from { opacity: 0; } }
 @keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.98); } }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
@@ -402,9 +412,16 @@ output { font-weight: 700; color: var(--primary); }
   .span-2 { grid-column: auto; }
   .meta-grid { grid-template-columns: 1fr 1fr; }
   .modal { padding: 0; align-items: end; }
-  .modal-dialog { width: 100%; max-height: 92vh; border-radius: 18px 18px 0 0; }
+  .modal-dialog { width: 100%; max-height: 92vh; max-height: 92dvh; border-radius: 18px 18px 0 0; }
+  .modal-head { padding: 14px 16px; }
+  .modal-body { padding: 14px 16px; }
+  .modal-foot { padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); }
 }
 @media (max-width: 420px) {
+  /* Кнопки футера модалки в один ряд — больше места под содержимое на маленьких экранах */
+  .modal-foot { gap: 6px; flex-wrap: nowrap; }
+  .modal-foot .spacer { display: none; }
+  .modal-foot .btn { flex: 1 1 0; min-width: 0; padding-left: 8px; padding-right: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .topbar-actions .btn-primary .btn-label { display: none; }
   .deadline-item { grid-template-columns: 1fr auto; }
   .deadline-date { display: none; }
@@ -439,7 +456,7 @@ output { font-weight: 700; color: var(--primary); }
 .member { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
 .member .avatar { border-width: 0; }
 .member small { font-size: 11px; font-weight: 400; }
-.team-field { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px 12px; margin: 0; }
+.team-field { min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px 12px; margin: 0; }
 .team-field legend { font-size: 13px; font-weight: 600; color: var(--text-soft); padding: 0 6px; }
 .team-field legend small { font-weight: 400; color: var(--muted); margin-left: 4px; }
 .team-search input { width: 100%; }

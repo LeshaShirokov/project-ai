@@ -16,7 +16,10 @@
   function openModal(modal, opts) {
     opts = opts || {};
     if (stack.some(function (m) { return m.el === modal; })) return;
-    var entry = { el: modal, returnFocus: opts.returnFocus || document.activeElement, onClose: opts.onClose };
+    var rf = opts.returnFocus || document.activeElement;
+    // Ключ для поиска «двойника», если исходный элемент пересоздан перерисовкой списка
+    var key = rf && rf.dataset ? rf.dataset.focusKey : null;
+    var entry = { el: modal, returnFocus: rf, returnKey: key || (rf && rf.id ? '#' + rf.id : null), onClose: opts.onClose };
     stack.push(entry);
     modal.hidden = false;
     document.body.classList.add('modal-open');
@@ -38,8 +41,22 @@
       if (app) { app.removeAttribute('aria-hidden'); app.inert = false; }
     }
     if (entry.onClose) entry.onClose(reason);
+    restoreFocus(entry);
+  }
+
+  /* Возврат фокуса после закрытия: исходный элемент → его копия после перерисовки (data-focus-key / id) →
+     <main>. Раньше после любого изменения в карточке строка списка пересоздавалась и фокус терялся в <body>. */
+  function restoreFocus(entry) {
+    var top = stack.length ? stack[stack.length - 1].el : null;
     var rf = entry.returnFocus;
-    if (rf && rf.focus && document.contains(rf)) { try { rf.focus(); } catch (e) { /* noop */ } }
+    if (!(rf && rf.focus && document.contains(rf) && !rf.closest('[hidden]') && (!top || top.contains(rf)))) {
+      if (top) return; // под закрытой модалкой открыта другая — фокус остаётся в ней
+      rf = null;
+      var k = entry.returnKey;
+      if (k) rf = k.charAt(0) === '#' ? document.getElementById(k.slice(1)) : document.querySelector('[data-focus-key="' + k.replace(/["\\]/g, '') + '"]');
+      if (!rf) rf = document.getElementById('main');
+    }
+    if (rf && rf.focus) { try { rf.focus(); } catch (e) { /* noop */ } }
   }
 
   function initModals() {
